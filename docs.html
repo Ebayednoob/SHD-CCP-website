@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en" class="dark"> 
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHD-CCP Technical Documents</title>
+    
+
+<script src="https://cdn.tailwindcss.com"></script>
+    
+
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" xintegrity="sha384-n8MVd4RsNIU0tAv4c8SbdqGBOsobeNHUoSjHlOPhEYLzZcTCEcTctorPZGEduPqQ" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" xintegrity="sha384-XjkyKTZaKjK2jVjB2SdlZqrVfA/vANLMgqKOkVSPMnhRby+sERkCBIkhQNKigN/C" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" xintegrity="sha384-+VBxd3r6gPkjGGFGeoSo8SvWAe/R/rcGIOvDoR5Y2J4FpUvA/H1M+GrLsr/G1yL4" crossorigin="anonymous"></script>
+
+    
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            color: #e0e0e0; /* Light gray text for dark default */
+        }
+
+        /* --- Custom Scrollbar Styles --- */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a; /* Dark track */
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #0f0; /* Neon green thumb */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #3f3; /* Lighter neon green on hover */
+        }
+        
+        /* --- Layout Helpers --- */
+        .sidebar-nav {
+            height: calc(100vh - 4rem); /* 4rem is header height */
+            overflow-y: auto;
+        }
+
+        /* --- Floating Section Styles --- */
+        .floating-section {
+            background-color: rgba(10, 20, 10, 0.4); /* Dark green tint with transparency */
+            border: 1px solid rgba(0, 255, 0, 0.2); /* Neon green border */
+            border-radius: 8px;
+            padding: 2.5rem; /* Equivalent to prose-xl default spacing */
+            margin-bottom: 2rem; /* Spacing between sections */
+            box-shadow: 0 4px 15px rgba(0, 255, 0, 0.2), 0 0 30px rgba(0, 255, 0, 0.1); /* Neon glow shadow */
+            backdrop-filter: blur(5px); /* Subtle blur behind for depth */
+            transition: all 0.3s ease;
+        }
+        .floating-section:hover {
+            border-color: rgba(0, 255, 0, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3), 0 0 40px rgba(0, 255, 0, 0.2);
+            transform: translateY(-2px); /* Slight lift on hover */
+        }
+
+        /* --- Override Typography colors for neon theme in dark mode --- */
+        .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4, .dark .prose h5, .dark .prose h6 {
+            color: #0f0; /* Neon green headings */
+            text-shadow: 0 0 8px rgba(0, 255, 0, 0.5); /* Glowing effect */
+        }
+        .dark .prose strong {
+            color: #3f3; /* Lighter neon green for strong text */
+        }
+        .dark .prose a {
+            color: #0f0; /* Neon green links */
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(0, 255, 0, 0.5); /* Subtle dashed underline */
+        }
+        .dark .prose a:hover {
+            color: #3f3;
+            border-bottom-color: #3f3;
+        }
+        .dark .prose pre code {
+            color: #e0e0e0; /* Ensure code text is readable */
+        }
+        .dark .prose :where(code):not(pre code) {
+            background-color: rgba(0, 255, 0, 0.1); /* Inline code background */
+            color: #0f0;
+            padding: 0.1em 0.3em;
+            border-radius: 3px;
+        }
+        .dark .prose hr {
+            border-top: 1px dashed rgba(0, 255, 0, 0.3); /* Neon dashed separator */
+        }
+
+        /* --- Particles.js specific styling --- */
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background-color: #000; /* Pure black background */
+            z-index: -1; /* Send it to the background */
+        }
+        .content-overlay {
+            position: relative;
+            z-index: 1; /* Ensure content is above particles */
+        }
+    </style>
+    
+    
+
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+    <script>
+        // Manages light/dark mode
+        function setupThemeToggle() {
+            const themeToggle = document.getElementById('theme-toggle');
+            if (!themeToggle) return;
+
+            // We're going with dark as default for this theme, so toggle switches to a light variant
+            // On page load, check local storage and apply theme (overriding initial 'dark' class if 'light' was set)
+            if (localStorage.theme === 'light') {
+                document.documentElement.classList.remove('dark');
+                themeToggle.innerHTML = getIcon('moon');
+            } else { // Default to dark if no preference or explicitly dark
+                document.documentElement.classList.add('dark');
+                themeToggle.innerHTML = getIcon('sun');
+            }
+
+            themeToggle.addEventListener('click', () => {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.theme = isDark ? 'dark' : 'light';
+                themeToggle.innerHTML = isDark ? getIcon('sun') : getIcon('moon');
+            });
+        }
+
+        // SVG icons for toggle
+        function getIcon(icon) {
+            if (icon === 'moon') {
+                return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`;
+            }
+            if (icon === 'sun') {
+                return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`;
+            }
+            return '';
+        }
+
+        // Run setup scripts on content load
+        document.addEventListener('DOMContentLoaded', () => {
+            setupThemeToggle();
+            
+            // Setup all collapsible sections in the sidebar
+            document.querySelectorAll('.sidebar-nav .collapsible-button').forEach(button => {
+                const content = button.nextElementSibling;
+                button.addEventListener('click', () => {
+                    content.classList.toggle('hidden');
+                    button.querySelector('svg').classList.toggle('rotate-90');
+                });
+            });
+
+            // Initialize KaTeX (Math Rendering)
+            try {
+                if (renderMathInElement) {
+                    renderMathInElement(document.body, {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},  // Block math
+                            {left: '$', right: '$', display: false}   // Inline math
+                        ],
+                        throwOnError: false
+                    });
+                }
+            } catch (error) {
+                console.error("KaTeX auto-render failed: ", error);
+            }
+
+            // Initialize Highlight.js (Code Highlighting)
+            try {
+                if (hljs) {
+                    hljs.highlightAll();
+                }
+            } catch (error) {
+                console.error("Highlight.js failed: ", error);
+            }
+
+            // Initialize Particles.js
+            if (window.particlesJS) {
+                particlesJS('particles-js', {
+                    "particles": {
+                        "number": {
+                            "value": 80,
+                            "density": {
+                                "enable": true,
+                                "value_area": 800
+                            }
+                        },
+                        "color": {
+                            "value": "#00FF00" // Neon Green
+                        },
+                        "shape": {
+                            "type": "circle",
+                            "stroke": {
+                                "width": 0,
+                                "color": "#00FF00"
+                            },
+                            "polygon": {
+                                "nb_sides": 5
+                            }
+                        },
+                        "opacity": {
+                            "value": 0.5,
+                            "random": false,
+                            "anim": {
+                                "enable": false,
+                                "speed": 1,
+                                "opacity_min": 0.1,
+                                "sync": false
+                            }
+                        },
+                        "size": {
+                            "value": 3,
+                            "random": true,
+                            "anim": {
+                                "enable": false,
+                                "speed": 40,
+                                "size_min": 0.1,
+                                "sync": false
+                            }
+                        },
+                        "line_linked": {
+                            "enable": true,
+                            "distance": 150,
+                            "color": "#00FF00", // Neon Green lines
+                            "opacity": 0.4,
+                            "width": 1
+                        },
+                        "move": {
+                            "enable": true,
+                            "speed": 2,
+                            "direction": "none",
+                            "random": false,
+                            "straight": false,
+                            "out_mode": "out",
+                            "bounce": false,
+                            "attract": {
+                                "enable": false,
+                                "rotateX": 600,
+                                "rotateY": 1200
+                            }
+                        }
+                    },
+                    "interactivity": {
+                        "detect_on": "canvas",
+                        "events": {
+                            "onhover": {
+                                "enable": true,
+                                "mode": "repulse"
+                            },
+                            "onclick": {
+                                "enable": true,
+                                "mode": "push"
+                            },
+                            "resize": true
+                        },
+                        "modes": {
+                            "grab": {
+                                "distance": 400,
+                                "line_linked": {
+                                    "opacity": 1
+                                }
+                            },
+                            "bubble": {
+                                "distance": 400,
+                                "size": 40,
+                                "duration": 2,
+                                "opacity": 8,
+                                "speed": 3
+                            },
+                            "repulse": {
+                                "distance": 200,
+                                "duration": 0.4
+                            },
+                            "push": {
+                                "particles_nb": 4
+                            },
+                            "remove": {
+                                "particles_nb": 2
+                            }
+                        }
+                    },
+                    "retina_detect": true
+                });
+            }
+        });
+    </script>
+</head>
+<body class="bg-black text-gray-100 dark:bg-black dark:text-gray-100">
+
+    
+
+<div id="particles-js"></div>
+
+    
+
+<div class="content-overlay">
+        
+
+<header class="sticky top-0 z-40 w-full h-16 bg-black dark:bg-black border-b border-green-800 flex-shrink-0">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-full">
+                <div class="flex items-center">
+                    <a href="index.html" class="text-xl font-bold text-green-400 dark:text-green-400 hover:text-green-300">SHD-CCP Protocol</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Home</a>
+                    <a href="docs.html" class="text-sm font-bold text-green-500 dark:text-green-500">Documentation</a>
+                    <a href="tutorials.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Tutorials</a>
+                    <a href="math.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Math</a>
+                    <a href="simulation.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Simulation</a>
+                    <button id="theme-toggle" class="text-gray-300 dark:text-gray-300 hover:text-green-300" title="Toggle light/dark mode">
+                        
+
+</button>
+                </div>
+            </div>
+        </header>
+
+        
+
+<div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row">
+                
+                
+
+<aside class="w-full md:w-64 flex-shrink-0 md:border-r md:border-green-800">
+                    <nav class="sticky top-16 sidebar-nav py-8 overflow-y-auto">
+                        <ul class="space-y-6">
+                            
+
+<li>
+                                <h5 class="mb-3 text-sm font-semibold text-green-400 dark:text-green-400 uppercase tracking-wider">Getting Started</h5>
+                                <ul class="space-y-2">
+                                    <li><a href="#intro" class="block font-medium text-green-500 dark:text-green-500">Introduction</a></li>
+                                    <li><a href="#core-concepts" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Core Concepts</a></li>
+                                    <li><a href="#network-setup" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Network Setup</a></li>
+                                </ul>
+                            </li>
+                            
+                            
+
+<li>
+                                <h5 class="mb-3 text-sm font-semibold text-green-400 dark:text-green-400 uppercase tracking-wider">The 64-bit Packet</h5>
+                                <ul class="space-y-2">
+                                    <li><a href="#what-is-a-symbol" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">What is a Symbol?</a></li>
+                                    <li><a href="#packet-breakdown" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Deconstructing the Packet</a></li>
+                                    <li><a href="#context-vectors" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Context Vectors</a></li>
+                                    <li><a href="#logical-operators" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Logical Operators</a></li>
+                                    <li><a href="#ethical-flags" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Ethical Flags</a></li>
+                                    <li><a href="#math-foundation" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Math Foundations</a></li>
+                                </ul>
+                            </li>
+
+                            
+
+<li>
+                                <button class="collapsible-button flex items-center justify-between w-full text-sm font-semibold text-green-400 dark:text-green-400 uppercase tracking-wider">
+                                    <span>Tutorials</span>
+                                    <svg class="w-4 h-4 transition-transform transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                                <ul class="mt-3 ml-2 space-y-2"> 
+
+<li><a href="#tutorial-first-packet" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">1. Sending Your First Packet</a></li>
+                                    <li><a href="#tutorial-reading-state" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">2. Reading Network State</a></li>
+                                    <li><a href="#tutorial-qpos" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">3. Understanding QPoS</a></li>
+                                </ul>
+                            </li>
+
+                            
+
+<li>
+                                <button class="collapsible-button flex items-center justify-between w-full text-sm font-semibold text-green-400 dark:text-green-400 uppercase tracking-wider">
+                                    <span>Advanced Topics</span>
+                                    <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                                <ul class="hidden mt-3 ml-2 space-y-2"> 
+
+<li><a href="#advanced-hyperbolic" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Hyperbolic Projections</a></li>
+                                    <li><a href="#advanced-governance" class="block text-gray-300 dark:text-gray-300 hover:text-green-300">Ethical Governance</a></li>
+                                </ul>
+                            </li>
+
+                        </ul>
+                    </nav>
+                </aside>
+
+                
+
+<main class="flex-1 w-full min-w-0 py-8 md:px-8 lg:px-12">
+                    <article class="prose dark:prose-invert max-w-none">
+                        
+                        <section id="intro" class="floating-section">
+                            <h1>Introduction</h1>
+                            <p class="lead">Welcome to the SHD-CCP technical documentation. This site provides a comprehensive, tutorial-based guide to understanding and utilizing the 64-bit neural-symbolic language at the heart of the decentralized general intelligence network.</p>
+                            <p>The Symbolic High-Dimensional Context Compression Protocol (SHD-CCP) is not just a language; it's a revolutionary framework for distributed thought. This guide will walk you through the core concepts, the structure of the data packets, and practical tutorials for interacting with the network.</p>
+                        </section>
+
+                        <section id="core-concepts" class="floating-section">
+                            <h2>Core Concepts</h2>
+                            <p>Before diving into the packet data, it's essential to understand the foundational principles of the network. (This content can be expanded or linked to the homepage sections).</p>
+                            <ul>
+                                <li><b>Neural-Symbolic AI:</b> Merging intuitive pattern-matching with logical, high-level reasoning.</li>
+                                <li><b>Hyperbolic Geometry:</b> Projecting data into a curved space to efficiently model vast, hierarchical relationships.</li>
+                                <li><b>Quantum Proof-of-Simulation (QPoS):</b> A consensus mechanism based on running predictive simulations, not solving arbitrary puzzles.</li>
+                                <li><b>Mother AI:</b> The decentralized ethical oversight framework ensuring network alignment.</li>
+                            </ul>
+                        </section>
+
+                        <section id="network-setup" class="floating-section">
+                            <h2>Network Setup</h2>
+                            <p>To begin interacting with the network and sending packets, you'll need to install the client and connect to a peer node. Here is the basic setup process...</p>
+                            <pre><code class="language-bash"># Install the client
+pip install shd-ccp-client
+
+# Authenticate with the network
+shd-client init --wallet [YOUR_WALLET]
+
+# Connect to a peer node
+shd-client connect --peer [PEER_IP_OR_DNS]
+                            </code></pre>
+                        </section>
+
+                        <hr>
+
+                        <section id="what-is-a-symbol" class="floating-section">
+                            <h2 class="text-2xl font-bold">The 64-bit Packet: What is a Symbol?</h2>
+                            <p>A "Symbol" (or "packet") is the fundamental unit of communication in the SHD-CCP network. It is a single 64-bit integer that compresses an enormous amount of context. It is <b>not</b> just data; it is a pointer to a high-dimensional concept, a logical operation, and an ethical alignment check, all in one.</p>
+                            <p>Your goal as a developer is to learn how to construct, send, and interpret these dense, powerful symbols.</p>
+                        </section>
+
+                        <section id="packet-breakdown" class="floating-section">
+                            <h3>Deconstructing the 64-bit Packet</h3>
+                            <p>Let's break down the 64-bit integer. Each segment has a specific purpose. We will read the bits from most significant (MSB) to least significant (LSB).</p>
+                            <pre><code class="language-none">
+| Bits  |  Segment          | Purpose                                    |
+|-------|-------------------|--------------------------------------------|
+| 63-44 | 20 bits           | Context Vector Pointer                     |
+| 43-32 | 12 bits           | Logical Operator                           |
+| 31-24 | 8 bits            | Ethical Alignment Flag                     |
+| 23-0  | 24 bits           | Payload Hash / Data Pointer                |
+                            </code></pre>
+                            <p>This is the data structure you will be working with in all tutorials.</p>
+                        </section>
+                        
+                        <section id="context-vectors" class="floating-section">
+                            <h3>Context Vectors (Bits 63-44)</h3>
+                            <p>These 20 bits do not represent a value, but rather a <b>pointer to a region in the $n$-dimensional shared hyperbolic space $\mathbb{H}^n$</b>. This is the "context" of the symbol. For example, a vector $v$ might point to the conceptual region of "Physics," while another points to "Art." Sending a symbol with this pointer means "interpret the payload <i>within the context of</i> Physics."</p>
+                        </section>
+
+                        <section id="logical-operators" class="floating-section">
+                            <h3>Logical Operators (Bits 43-32)</h3>
+                            <p>These 12 bits define the <i>action</i> or <i>relationship</i> of the symbol. This is what makes the language symbolic. You can define operations like:</p>
+                            <ul>
+                                <li><code>0x001</code>: <b>OBSERVE</b> (Read data from this context)</li>
+                                <li><code>0x002</code>: <b>ASSERT</b> (Write new data to this context)</li>
+                                <li><code>0x003</code>: <b>QUERY</b> (Ask a question to this context)</li>
+                                <li><code>0x101</code>: <b>CAUSE</b> (Assert that Symbol A causes Symbol B)</li>
+                            </ul>
+                        </section>
+
+                        <section id="ethical-flags" class="floating-section">
+                            <h3>Ethical Flags (Bits 31-24)</h3>
+                            <p>This 8-bit field is a non-optional checksum against the Mother AI's core principles. Before a node will process your packet, it validates this flag. If the intended operation (e.g., an <b>ASSERT</b> in a critical context) violates an ethical principle, the packet is rejected by the network.</p>
+                        </section>
+
+                        <section id="math-foundation" class="floating-section">
+                            <h3>Mathematical Foundations (LaTeX Example)</h3>
+                            <p>The efficiency of SHD-CCP's context compression is derived from its hyperbolic geometric projection. While Euclidean space is "flat" ($ \mathbb{R}^n $), hyperbolic space ($\mathbb{H}^n$) is negatively curved. This means the circumference of a circle $C$ grows exponentially with its radius $r$, $C \approx e^r$.</p>
+                            <p>This is critical. It allows us to represent deep, complex hierarchies (like 'thing' $\rightarrow$ 'animal' $\rightarrow$ 'mammal' $\rightarrow$ 'dog') with logarithmic efficiency. The relationship between a parent $p$ and a child $c$ isn't a simple link; it's a geodesic path in a curved manifold, $d(p, c)$.</p>
+                            <p>The core formula for calculating distance in the Poincaré model is:</p>
+                            $$
+                            d(p, q) = \text{arccosh} \left( 1 + \frac{2 \|p - q\|^2}{(1 - \|p\|^2)(1 - \|q\|^2)} \right)
+                            $$
+                            <p>You don't need to calculate this to use the protocol, but it's fundamental to why the network is so efficient at storing and retrieving contextual information.</p>
+                        </section>
+
+                        <hr>
+
+                        <section id="tutorial-first-packet" class="floating-section">
+                            <h2>Tutorial 1: Sending Your First Packet</h2>
+                            <p>Now, let's put it all together. We will construct a simple packet to make an <b>ASSERT</b> (<code>0x002</code>) in the "Tutorial Sandbox" context (<code>0x1A4</code>) with a simple payload.</p>
+                            <p>This is where you will add your long, detailed tutorial content, complete with code blocks, step-by-step instructions, and expected outputs.</p>
+                            
+                            <pre><code class="language-python">
+from shd_client import Symbol, Context, Operator
+
+# 1. Define our context
+# (The client translates 'sandbox' to the correct vector 0x1A4)
+ctx = Context.get("tutorial_sandbox") 
+
+# 2. Define our operator
+op = Operator.ASSERT
+
+# 3. Define our payload
+# (The client handles hashing this data to 24 bits)
+payload = {"msg": "hello_world"}
+
+# 4. Construct the 64-bit symbol
+symbol_packet = Symbol(context=ctx, operator=op, payload=payload)
+
+# 5. Send the packet to the network
+network_response = symbol_packet.send()
+
+print(f"Packet sent (64-bit): {symbol_packet.to_int()}")
+print(f"Network response: {network_response.status}")
+                            </code></pre>
+                        </section>
+
+                        <section id="tutorial-reading-state" class="floating-section">
+                            <h2>Tutorial 2: Reading Network State</h2>
+                            <p>...</p>
+                        </section>
+
+                        <section id="tutorial-qpos" class="floating-section">
+                            <h2>Tutorial 3: Understanding QPoS</h2>
+                            <p>...</p>
+                        </section>
+
+                    </article>
+                </main>
+
+                
+
+<aside class="hidden lg:block w-64 flex-shrink-0">
+                    <div class="sticky top-16 sidebar-nav py-8 overflow-y-auto">
+                        <h5 class="mb-4 text-sm font-semibold text-green-400 dark:text-green-400 uppercase tracking-wider">On this page</h5>
+                        <ul class="space-y-2">
+                            <li><a href="#intro" class="block text-sm text-gray-300 dark:text-gray-300 hover:text-green-300">Introduction</a></li>
+                            <li><a href="#core-concepts" class="block text-sm text-gray-300 dark:text-gray-300 hover:text-green-300">Core Concepts</a>
+                            <li><a href="#network-setup" class="block text-sm text-gray-300 dark:text-gray-300 hover:text-green-300">Network Setup</a></li>
+                            <li>
+                                <a href="#what-is-a-symbol" class="block text-sm text-gray-300 dark:text-gray-300 hover:text-green-300">What is a Symbol?</a>
+                                <ul class="mt-2 ml-4 space-y-2 border-l border-green-800">
+                                    <li><a href="#packet-breakdown" class="block pl-4 text-sm text-gray-400 dark:text-gray-400 hover:text-green-300">Packet Breakdown</a></li>
+                                    <li><a href="#context-vectors" class="block pl-4 text-sm text-gray-400 dark:text-gray-400 hover:text-green-300">Context Vectors</a></li>
+                                    <li><a href="#logical-operators" class="block pl-4 text-sm text-gray-400 dark:text-gray-400 hover:text-green-300">Logical Operators</a></li>
+                                    <li><a href="#math-foundation" class="block pl-4 text-sm text-gray-400 dark:text-gray-400 hover:text-green-300">Math Foundations</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="#tutorial-first-packet" class="block text-sm text-gray-300 dark:text-gray-300 hover:text-green-300">Tutorial 1: First Packet</a></li>
+                        </ul>
+                    </div>
+                </aside>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
