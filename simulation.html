@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en" class="dark"> <!-- Force dark by default -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D SHD-CCP Packet Lattice</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Neon theme styles -->
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; /* App is fullscreen */
+            background-color: #050505; /* Very dark grey, almost black */
+            background-image: radial-gradient(circle at 50% 50%, #111 0%, #000 100%); /* Subtle gradient */
+            color: #fff; 
+            font-family: 'Inter', sans-serif; 
+        }
+        canvas { 
+            display: block; 
+            position: fixed; /* Sit behind header */
+            top: 0;
+            left: 0;
+            z-index: 1;
+            cursor: crosshair; /* Default cursor for selection */
+        }
+
+        /* --- Custom Scrollbar Styles --- */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background-color: #0f0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #3f3; }
+
+        .content-overlay {
+            position: relative;
+            z-index: 2; /* UI elements above canvas */
+        }
+
+        /* --- Themed UI Panels --- */
+        #info {
+            position: absolute;
+            top: calc(4rem + 10px); /* 4rem header + 10px margin */
+            left: 10px;
+            padding: 1rem;
+            font-size: 14px;
+            max-width: 240px;
+            /* Neon theme */
+            background-color: rgba(10, 20, 10, 0.4);
+            border: 1px solid rgba(0, 255, 0, 0.2);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 255, 0, 0.2), 0 0 30px rgba(0, 255, 0, 0.1);
+            backdrop-filter: blur(5px);
+            color: #e0e0e0;
+        }
+        #info strong {
+            color: #0f0;
+            text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+        }
+        #info em {
+            color: #0f0;
+            opacity: 0.7;
+        }
+
+        #packet-details {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            padding: 1.25rem;
+            max-width: 280px;
+            display: none; /* Hidden by default */
+            font-size: 12px;
+            /* Neon theme */
+            background-color: rgba(10, 20, 10, 0.6);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 255, 0, 0.2), 0 0 30px rgba(0, 255, 0, 0.1);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        #packet-details h4 { 
+            margin-top: 0; 
+            margin-bottom: 10px; 
+            color: #0f0; 
+            border-bottom: 1px solid rgba(0, 255, 0, 0.5); 
+            padding-bottom: 5px; 
+            font-size: 1rem;
+            font-weight: 700;
+            text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+        }
+        #packet-details p { margin: 4px 0; display: flex; justify-content: space-between; }
+        #packet-details span { color: #ccc; }
+        #packet-details strong { color: #fff; font-weight: normal; }
+
+        /* Ensure lil-gui is on top */
+        .lil-gui { z-index: 99 !important; }
+        
+        /* FIX: Style the lil-gui dropdown menu */
+        .lil-gui .controller select {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 4px;
+            width: 100%;
+        }
+        .lil-gui .controller select:focus {
+            outline: 1px solid #0f0;
+        }
+        .lil-gui .controller option {
+            background-color: #333;
+            color: #fff;
+        }
+
+        /* Info box for FPS mode */
+        #fps-info {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 1.5rem;
+            background-color: rgba(10, 20, 10, 0.8);
+            border: 1px solid rgba(0, 255, 0, 0.5);
+            border-radius: 8px;
+            box-shadow: 0 4px 30px rgba(0, 255, 0, 0.3);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            font-size: 1.25rem;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 100;
+        }
+        #fps-info strong { color: #0f0; }
+        
+        /* NEW: Crosshair Reticle */
+        #reticle {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            display: none; /* Hidden by default */
+            z-index: 100;
+            font-size: 20px;
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+            pointer-events: none; /* Click through it */
+        }
+        #reticle::before {
+            content: '+';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+    </style>
+    
+    <!-- Background Particles -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    
+    <!-- 3D Simulation Libraries -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+            "lil-gui": "https://unpkg.com/lil-gui@0.19.1/dist/lil-gui.esm.js"
+        }
+    }
+    </script>
+
+</head>
+<body class="bg-black text-gray-100 dark:bg-black dark:text-gray-100">
+
+    <!-- Particle background (Z-index 0) -->
+    <div id="particles-js"></div>
+    
+    <!-- 3D Canvas (Z-index 1) -->
+    <canvas id="c"></canvas>
+    
+    <!-- NEW: Crosshair Reticle -->
+    <div id="reticle">+</div>
+
+    <!-- UI Overlay (Z-index 2) -->
+    <div class="content-overlay">
+        
+        <!-- Sitewide Header -->
+        <header class="sticky top-0 z-40 w-full h-16 bg-black dark:bg-black border-b border-green-800 flex-shrink-0">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-full">
+                <div class="flex items-center">
+                    <a href="index.html" class="text-xl font-bold text-green-400 dark:text-green-400 hover:text-green-300">SHD-CCP Protocol</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Home</a>
+                    <a href="docs.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Documentation</a>
+                    <a href="tutorials.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Tutorials</a>
+                    <a href="math.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Math</a>
+                    <a href="simulation.html" class="text-sm font-bold text-green-500 dark:text-green-500">Simulation</a> <!-- Active Page -->
+                    <button id="theme-toggle" class="text-gray-300 dark:text-gray-300 hover:text-green-300" title="Toggle light/dark mode"></button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Simulation UI Panels -->
+        <div id="info">
+            <strong>SHD-CCP Lattice Simulation</strong><br>
+            <!-- NEW: Hide/Show Button -->
+            <button id="hide-info-btn" class="absolute top-2 right-2 text-green-400 hover:text-white p-1 leading-none" style="font-size: 1rem; z-index: 10;">[ - ]</button>
+            
+            <!-- NEW: Content Wrapper -->
+            <div id="info-content">
+                <span id="packet-count">Packets: ...</span><br>
+                Use mouse to rotate, pan, and zoom.<br>
+                <em>Click to select a packet.</em><br>
+                <em>Shift+Click to multi-select or deactivate.</em>
+                <p id="fps-info-toggle" style="color: #0f0; cursor: pointer; margin-top: 10px;">Click canvas to enter FPS Mode</p>
+            </div>
+        </div>
+        
+        <div id="packet-details">
+            <h4>SHD-CCP Packet Details</h4>
+            <p><span>Node Index:</span> <strong id="pd-index"></strong></p>
+            <p><span>Full Quaternion:</span> <strong id="pd-quat"></strong></p>
+            <p style="margin-left: 10px;"><span>R (FP8):</span> <strong id="pd-quat-r"></strong></p>
+            <p style="margin-left: 10px;"><span>G (FP8):</span> <strong id="pd-quat-g"></strong></p>
+            <p style="margin-left: 10px;"><span>B (FP8):</span> <strong id="pd-quat-b"></strong></p>
+            <p style="margin-left: 10px;"><span>A (FP8):</span> <strong id="pd-quat-a"></strong></p>
+            <p><span>Structural Form ID:</span> <strong id="pd-form"></strong></p>
+            <p><span>Amplitude ID:</span> <strong id="pd-amp"></strong></p>
+            <p><span>Frequency ID:</span> <strong id="pd-freq"></strong></p>
+            <p><span>Spin Class ID:</span> <strong id="pd-spin"></strong></p>
+            <p><span>Payload Scaling Factor:</span> <strong id="pd-scale"></strong></p>
+            <p><span>Reserved/Parity:</span> <strong id="pd-parity"></strong></p>
+        </div>
+
+        <!-- FPS Mode Info Panel -->
+        <div id="fps-info">
+            <strong>First-Person Mode</strong>
+            <p style="font-size: 1rem; margin-top: 10px;">
+                WASD: Move<br>
+                C: Up | SHIFT: Down<br>
+                SPACE: Play/Pause<br>
+                CLICK: Select Node<br>
+                ESC: Exit
+            </p>
+        </div>
+        
+    </div>
+
+
+    <!-- Main JS Block -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import GUI from 'lil-gui';
+
+        // --- GLOBAL VARIABLES ---
+        let scene, camera, renderer, gui, particlesInstance;
+        let orbitControls, fpsControls;
+        let particleSystem, wireframeBox;
+        
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        const packetData = new Map();
+        const activeNodes = new Map();
+        const selectedNodes = new Set();
+        let shiftPressed = false;
+
+        // --- NEW ---
+        let selectionBoxHelper, selectionHighlights, highlightGeometry, highlightMaterial;
+        const dummy = new THREE.Object3D(); // For InstancedMesh
+        const clock = new THREE.Clock();
+        const keysPressed = {};
+        const moveSpeed = 10; // units per second
+
+        // --- STATE OBJECTS ---
+        let editorGUI, selectionFolder, playbackFolder, dimensionsFolder;
+        let controlModeController, isPlayingController; // GUI controllers
+        const editorState = { quatR: 255, quatG: 255, quatB: 255, quatA: 255, formId: -1, amplitudeId: 0, frequencyId: 0, spinClassId: 0, scalingFactor: 0.0, parity: 0 };
+        const selectionState = { startX: 0, startY: 0, startZ: 0, endX: 10, endY: 10, endZ: 10, selectArea: () => selectArea() };
+        const state = { 
+            isPlaying: true, 
+            dimensions: { gridSizeX: 100, gridSizeY: 100, gridSizeZ: 100 }, // NEW: Default size 100
+            particleSpeed: 0.1,
+            controlMode: 'orbit' // 'orbit' or 'firstPerson'
+        };
+        const defaultDimensions = { gridSizeX: 100, gridSizeY: 100, gridSizeZ: 100 };
+
+        // --- SHAPE DEFINITIONS ---
+        const SHAPE_DATA = {
+            '-1': { name: 'Null', getGeometry: () => null },
+            0: { name: 'Tetrahedron', getGeometry: () => new THREE.TetrahedronGeometry(0.5) },
+            1: { name: 'Cube', getGeometry: () => new THREE.BoxGeometry(0.7, 0.7, 0.7) },
+            2: { name: 'Octahedron', getGeometry: () => new THREE.OctahedronGeometry(0.6) },
+            3: { name: 'Icosahedron', getGeometry: () => new THREE.IcosahedronGeometry(0.7) },
+            4: { name: 'Dodecahedron', getGeometry: () => new THREE.DodecahedronGeometry(0.7) },
+            5: { name: 'Truncated Tetrahedron', getGeometry: () => new THREE.PolyhedronGeometry(...getPlaceholderPolyhedronData()) },
+            7: { name: 'Buckyball', getGeometry: () => new THREE.IcosahedronGeometry(0.7, 1) },
+            8: { name: 'Rhombicuboctahedron', getGeometry: () => new THREE.PolyhedronGeometry(...getPlaceholderPolyhedronData())},
+            9: { name: 'Icosidodecahedron', getGeometry: () => new THREE.IcosahedronGeometry(0.7, 2) },
+            10: { name: 'Truncated Cuboctahedron', getGeometry: () => new THREE.PolyhedronGeometry(...getPlaceholderPolyhedronData())},
+            11: { name: 'Snub Cube', getGeometry: () => new THREE.PolyhedronGeometry(...getPlaceholderPolyhedronData())}
+        };
+
+        // --- THEME HELPERS ---
+        function getIcon(icon) {
+            if (icon === 'moon') return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`;
+            if (icon === 'sun') return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`;
+            return '';
+        }
+        function setupThemeToggle() {
+            const themeToggle = document.getElementById('theme-toggle');
+            if (localStorage.theme === 'light') {
+                document.documentElement.classList.remove('dark');
+                if (themeToggle) themeToggle.innerHTML = getIcon('moon');
+            } else {
+                document.documentElement.classList.add('dark');
+                if (themeToggle) themeToggle.innerHTML = getIcon('sun');
+            }
+            themeToggle?.addEventListener('click', () => {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.theme = isDark ? 'dark' : 'light';
+                themeToggle.innerHTML = isDark ? getIcon('sun') : getIcon('moon');
+            });
+        }
+
+        // --- INITIALIZATION ---
+        function init() {
+            scene = new THREE.Scene();
+            
+            const headerHeight = document.querySelector('header').offsetHeight;
+            const simWidth = window.innerWidth;
+            const simHeight = window.innerHeight; // Full height, canvas is behind header
+
+            camera = new THREE.PerspectiveCamera(60, simWidth / (simHeight - headerHeight), 0.1, 2000);
+            
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, alpha: true });
+            renderer.setSize(simWidth, simHeight);
+            renderer.setClearColor(0x000000, 0); // Transparent
+            renderer.setViewport(0, 0, simWidth, simHeight); // Control viewport
+            
+            renderer.domElement.style.top = `0px`;
+            
+            // --- Setup Controls ---
+            orbitControls = new OrbitControls(camera, renderer.domElement);
+            orbitControls.enableDamping = true;
+            orbitControls.dampingFactor = 0.05;
+            orbitControls.enableZoom = false; 
+            orbitControls.minDistance = 5;
+            orbitControls.maxDistance = 1000;
+
+            fpsControls = new PointerLockControls(camera, renderer.domElement);
+            fpsControls.addEventListener('lock', () => {
+                document.getElementById('fps-info').style.display = 'block';
+                document.getElementById('fps-info-toggle').style.display = 'none';
+                document.getElementById('reticle').style.display = 'block'; // Show reticle
+                state.controlMode = 'firstPerson';
+                if (controlModeController) controlModeController.setValue('firstPerson');
+                // NEW: Pause particles for performance
+                if (particlesInstance) {
+                    particlesInstance.fn.pauseAnimation(); 
+                }
+            });
+            fpsControls.addEventListener('unlock', () => {
+                document.getElementById('fps-info').style.display = 'none';
+                document.getElementById('fps-info-toggle').style.display = 'block';
+                document.getElementById('reticle').style.display = 'none'; // Hide reticle
+                state.controlMode = 'orbit';
+                if (controlModeController) controlModeController.setValue('orbit');
+                // NEW: Resume particles
+                if (particlesInstance) {
+                    particlesInstance.fn.resumeAnimation();
+                }
+            });
+            scene.add(fpsControls.getObject());
+
+            // Set initial control state
+            orbitControls.enabled = true;
+            
+            raycaster.params.Points.threshold = 0.5;
+
+            camera.position.set(50, 50, 50);
+            camera.lookAt(scene.position);
+
+            // --- Add Selection Helpers ---
+            // Yellow box to show the GUI selection area
+            const selBoxGeom = new THREE.BoxGeometry(1, 1, 1);
+            const selBoxEdges = new THREE.EdgesGeometry(selBoxGeom);
+            selectionBoxHelper = new THREE.LineSegments(selBoxEdges, new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.5 }));
+            scene.add(selectionBoxHelper);
+
+            // InstancedMesh for highlighting all selected nodes
+            highlightGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true, transparent: true, opacity: 0.7 });
+            
+            setupGUI();
+            regenerateLattice(); // This will also create selectionHighlights
+            updateSelectionBoxHelper(); // Init position
+            setupThemeToggle(); // For the header
+
+            // Init particles
+            if (window.particlesJS) {
+                particlesJS('particles-js', {
+                    "particles": { "number": { "value": 80, "density": { "enable": true, "value_area": 800 } }, "color": { "value": "#00FF00" }, "shape": { "type": "circle" }, "opacity": { "value": 0.5 }, "size": { "value": 3, "random": true }, "line_linked": { "enable": true, "distance": 150, "color": "#00FF00", "opacity": 0.4, "width": 1 }, "move": { "enable": true, "speed": 2, "direction": "none", "out_mode": "out" } },
+                    "interactivity": { "detect_on": "canvas", "events": { "onhover": { "enable": false }, "onclick": { "enable": false }, "resize": true } },
+                    "retina_detect": true
+                }, function() {
+                    // Store the instance for later use
+                    if (window.pJSDom && window.pJSDom.length > 0) {
+                        particlesInstance = window.pJSDom[0].pJS;
+                    }
+                });
+            }
+
+            // --- Event Listeners ---
+            window.addEventListener('resize', onWindowResize, false);
+            renderer.domElement.addEventListener('click', onCanvasClick, false);
+            
+            // NEW: Add click listener to the info box toggle
+            document.getElementById('fps-info-toggle').addEventListener('click', () => {
+                toggleControlMode('firstPerson');
+            });
+            
+            // NEW: Add listener for the hide button
+            const hideInfoBtn = document.getElementById('hide-info-btn');
+            const infoContent = document.getElementById('info-content');
+            hideInfoBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Stop click from triggering canvas
+                const isHidden = infoContent.style.display === 'none';
+                if (isHidden) {
+                    infoContent.style.display = 'block';
+                    hideInfoBtn.textContent = '[ - ]';
+                } else {
+                    infoContent.style.display = 'none';
+                    hideInfoBtn.textContent = '[ + ]';
+                }
+            });
+
+            // NEW: Prevent UI clicks from triggering pointer lock
+            document.getElementById('info').addEventListener('mousedown', (e) => e.stopPropagation());
+            document.getElementById('packet-details').addEventListener('mousedown', (e) => e.stopPropagation());
+
+            renderer.domElement.addEventListener('wheel', onCanvasWheel, { passive: false });
+            window.addEventListener('keydown', e => { 
+                if (e.key === 'Shift') shiftPressed = true;
+                keysPressed[e.key.toLowerCase()] = true;
+
+                if (e.key === ' ' && state.controlMode === 'firstPerson') {
+                    e.preventDefault();
+                    state.isPlaying = !state.isPlaying;
+                    if (isPlayingController) isPlayingController.setValue(state.isPlaying);
+                }
+            });
+            window.addEventListener('keyup', e => { 
+                if (e.key === 'Shift') shiftPressed = false;
+                keysPressed[e.key.toLowerCase()] = false;
+            });
+
+            animate();
+        }
+
+        // --- LATTICE & NODE MANAGEMENT ---
+        function regenerateLattice() {
+            if (particleSystem) scene.remove(particleSystem);
+            if (wireframeBox) scene.remove(wireframeBox);
+            if (selectionHighlights) scene.remove(selectionHighlights);
+            activeNodes.forEach(node => scene.remove(node));
+            
+            packetData.clear();
+            activeNodes.clear();
+            selectedNodes.clear();
+            updateEditorGUI();
+
+            const { gridSizeX, gridSizeY, gridSizeZ } = state.dimensions;
+            const TOTAL_PARTICLES = gridSizeX * gridSizeY * gridSizeZ;
+            const SPACING = 1.5;
+
+            document.getElementById('packet-count').innerText = `Packets: ${TOTAL_PARTICLES.toLocaleString()}`;
+
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(TOTAL_PARTICLES * 3);
+            
+            let i = 0;
+            for (let y = 0; y < gridSizeY; y++) {
+                for (let z = 0; z < gridSizeZ; z++) {
+                    for (let x = 0; x < gridSizeX; x++) {
+                        const i3 = i * 3;
+                        positions[i3] = (x - gridSizeX / 2) * SPACING;
+                        positions[i3 + 1] = (y - gridSizeY / 2) * SPACING;
+                        positions[i3 + 2] = (z - gridSizeZ / 2) * SPACING;
+                        packetData.set(i, createDefaultPacketData());
+                        i++;
+                    }
+                }
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ size: 0.2, color: 0x005588, transparent: true, opacity: 0.3 });
+            particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+            
+            // Create InstancedMesh for selection highlights
+            selectionHighlights = new THREE.InstancedMesh(highlightGeometry, highlightMaterial, TOTAL_PARTICLES);
+            selectionHighlights.count = 0;
+            selectionHighlights.frustumCulled = false; // FIX: Stop highlights from disappearing
+            scene.add(selectionHighlights);
+
+            const boxSizeX = gridSizeX * SPACING;
+            const boxSizeY = gridSizeY * SPACING;
+            const boxSizeZ = gridSizeZ * SPACING;
+            const boxGeom = new THREE.BoxGeometry(boxSizeX, boxSizeY, boxSizeZ);
+            wireframeBox = new THREE.BoxHelper(new THREE.Mesh(boxGeom), 0x00aaff);
+            scene.add(wireframeBox);
+            
+            // Also update selection GUI constraints
+            if (selectionFolder) {
+                setupSelectionGUI();
+            }
+        }
+        
+        function activateNode(index) {
+            const data = packetData.get(index);
+            if (activeNodes.has(index) || data.formId === -1) return;
+
+            const nodeGroup = new THREE.Group();
+            const shapeDef = SHAPE_DATA[data.formId] || SHAPE_DATA[0]; // Fallback to a shape
+            const geometry = shapeDef.getGeometry();
+            const color = quaternionToColor(data.quaternion);
+            const material = new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.95 });
+            const wireframe = new THREE.Mesh(geometry, material);
+            const axesHelper = new THREE.AxesHelper(0.3);
+
+            nodeGroup.add(wireframe, axesHelper);
+            
+            const positions = particleSystem.geometry.attributes.position;
+            nodeGroup.position.set(positions.getX(index), positions.getY(index), positions.getZ(index));
+            
+            // Set orientation based on quaternion FP8 values
+            const { r, g, b } = quaternionToRgba(data.quaternion);
+            nodeGroup.rotation.set( (r / 255) * Math.PI * 2, (g / 255) * Math.PI * 2, (b / 255) * Math.PI * 2 );
+
+            activeNodes.set(index, nodeGroup);
+            scene.add(nodeGroup);
+        }
+        
+        function deactivateNode(index) {
+            if (!activeNodes.has(index)) return;
+            const node = activeNodes.get(index);
+            scene.remove(node);
+            node.traverse(child => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+            activeNodes.delete(index);
+            packetData.set(index, createDefaultPacketData());
+        }
+
+        function updateNodeVisuals(index) {
+            const data = packetData.get(index);
+            if (data.formId === -1) {
+                deactivateNode(index);
+                return;
+            }
+            if (!activeNodes.has(index)) {
+                activateNode(index);
+            }
+            const nodeGroup = activeNodes.get(index);
+            if (!nodeGroup) return;
+            const wireframe = nodeGroup.children[0];
+            wireframe.material.color = quaternionToColor(data.quaternion);
+            
+            // Update orientation
+            const { r, g, b } = quaternionToRgba(data.quaternion);
+            nodeGroup.rotation.set( (r / 255) * Math.PI * 2, (g / 255) * Math.PI * 2, (b / 255) * Math.PI * 2 );
+
+            // Update shape
+            const newShapeDef = SHAPE_DATA[data.formId] || SHAPE_DATA[0];
+            const newGeometry = newShapeDef.getGeometry();
+            wireframe.geometry.dispose();
+            wireframe.geometry = newGeometry;
+        }
+
+        // --- DATA CONVERSION & IMPORT ---
+        function createDefaultPacketData() {
+            const defaultColor = { r: 100, g: 150, b: 255, a: 242 };
+            return {
+                quaternion: rgbaToQuaternion(defaultColor.r, defaultColor.g, defaultColor.b, defaultColor.a),
+                formId: -1, amplitudeId: 0, reserved: 0, frequencyId: 0, spinClassId: 0, payloadScalingFactor: 0.0
+            };
+        }
+        
+        function rgbaToQuaternion(r, g, b, a) { return (r << 24) | (g << 16) | (b << 8) | a; }
+        function quaternionToRgba(quat) { return { r: (quat >> 24) & 0xFF, g: (quat >> 16) & 0xFF, b: (quat >> 8) & 0xFF, a: quat & 0xFF }; }
+        function quaternionToColor(quat) {
+            const { r, g, b } = quaternionToRgba(quat);
+            return new THREE.Color(r / 255, g / 255, b / 255);
+        }
+
+        // --- UI AND INTERACTION ---
+        function onCanvasClick(event) {
+            // NEW: In FPS mode, selection is handled by a different logic
+            if (state.controlMode === 'firstPerson') {
+                // Use mouse.set(0, 0) for center-screen raycast
+                performRaycastSelection(new THREE.Vector2(0, 0));
+                return;
+            }
+
+            // --- Orbit Mode Click Logic ---
+            const headerHeight = document.querySelector('header').offsetHeight;
+            const canvasBounds = renderer.domElement.getBoundingClientRect();
+            
+            const clickMouse = new THREE.Vector2();
+            clickMouse.x = ( (event.clientX - canvasBounds.left) / canvasBounds.width ) * 2 - 1;
+            clickMouse.y = - ( (event.clientY - canvasBounds.top) / (canvasBounds.height) ) * 2 + 1;
+            
+            performRaycastSelection(clickMouse);
+        }
+        
+        // NEW: Refactored selection logic
+        function performRaycastSelection(mouseCoords) {
+            raycaster.setFromCamera(mouseCoords, camera);
+
+            const intersects = raycaster.intersectObject(particleSystem);
+            if (intersects.length > 0) {
+                const index = intersects[0].index;
+                if (shiftPressed) {
+                    if (selectedNodes.has(index)) { 
+                        selectedNodes.delete(index); 
+                        deactivateNode(index); 
+                    } else { 
+                        selectedNodes.add(index); 
+                    }
+                } else {
+                    selectedNodes.clear();
+                    selectedNodes.add(index);
+                }
+                selectedNodes.forEach(idx => updateNodeVisuals(idx));
+                updateEditorGUI();
+                updatePacketInfoPanel(index);
+                updateSelectionHighlights();
+            }
+        }
+
+
+        function onCanvasWheel(event) {
+            event.preventDefault();
+            if (state.controlMode !== 'orbit') return; // Only zoom in orbit mode
+            
+            const zoomSpeed = 1.0;
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            let newPosition = camera.position.clone().addScaledVector(direction, event.deltaY > 0 ? zoomSpeed : -zoomSpeed);
+            const distance = newPosition.length();
+            if (distance > orbitControls.minDistance && distance < orbitControls.maxDistance) {
+                camera.position.copy(newPosition);
+            }
+        }
+
+        function updatePacketInfoPanel(index) {
+            const data = packetData.get(index);
+            if (!data) return;
+            const shapeName = (SHAPE_DATA[data.formId] || SHAPE_DATA[-1]).name;
+            const {r, g, b, a} = quaternionToRgba(data.quaternion);
+
+            document.getElementById('pd-index').textContent = index.toLocaleString();
+            document.getElementById('pd-quat').textContent = `0x${data.quaternion.toString(16).toUpperCase()}`;
+            document.getElementById('pd-quat-r').textContent = r;
+            document.getElementById('pd-quat-g').textContent = g;
+            document.getElementById('pd-quat-b').textContent = b;
+            document.getElementById('pd-quat-a').textContent = a;
+            document.getElementById('pd-form').textContent = `${data.formId} (${shapeName})`;
+            document.getElementById('pd-amp').textContent = data.amplitudeId;
+            document.getElementById('pd-freq').textContent = data.frequencyId;
+            document.getElementById('pd-spin').textContent = data.spinClassId;
+            document.getElementById('pd-scale').textContent = data.payloadScalingFactor;
+            document.getElementById('pd-parity').textContent = data.reserved;
+            document.getElementById('packet-details').style.display = 'block';
+        }
+
+        function setupGUI() {
+            if (gui) gui.destroy();
+            gui = new GUI();
+            gui.domElement.style.top = `calc(4rem + 10px)`; // Offset for header
+            
+            // NEW: Prevent GUI clicks from triggering pointer lock
+            if (gui) {
+                gui.domElement.addEventListener('mousedown', (e) => e.stopPropagation());
+            }
+
+            playbackFolder = gui.addFolder('Lattice Playback');
+            // Store controllers to update them programmatically
+            controlModeController = playbackFolder.add(state, 'controlMode', ['orbit', 'firstPerson']).name('Control Mode').onChange(toggleControlMode);
+            isPlayingController = playbackFolder.add(state, 'isPlaying').name('Play / Pause Flow');
+            
+            // NEW: Dimensions Folder
+            dimensionsFolder = gui.addFolder('Lattice Dimensions');
+            dimensionsFolder.add(state.dimensions, 'gridSizeX', 10, 200, 1).name('Grid X');
+            dimensionsFolder.add(state.dimensions, 'gridSizeY', 10, 200, 1).name('Grid Y');
+            dimensionsFolder.add(state.dimensions, 'gridSizeZ', 10, 200, 1).name('Grid Z');
+            dimensionsFolder.add({ apply: () => {
+                regenerateLattice();
+                updateSelectionBoxHelper();
+            } }, 'apply').name('Apply & Reset Lattice');
+            dimensionsFolder.add({ reset: () => {
+                state.dimensions.gridSizeX = defaultDimensions.gridSizeX;
+                state.dimensions.gridSizeY = defaultDimensions.gridSizeY;
+                state.dimensions.gridSizeZ = defaultDimensions.gridSizeZ;
+                dimensionsFolder.updateDisplay(); // Update GUI sliders
+                regenerateLattice();
+                updateSelectionBoxHelper();
+            } }, 'reset').name('Reset to Default (100³)');
+            
+            setupSelectionGUI();
+        }
+
+        function toggleControlMode(mode) {
+            if (mode === 'firstPerson') {
+                orbitControls.enabled = false;
+                fpsControls.lock();
+            } else {
+                orbitControls.enabled = true;
+                fpsControls.unlock();
+            }
+        }
+
+        function setupSelectionGUI() {
+            if (selectionFolder) selectionFolder.destroy();
+            selectionFolder = gui.addFolder('Selection Tools');
+            selectionFolder.domElement.addEventListener('mousedown', (e) => e.stopPropagation()); // Prevent click-through
+            
+            const { gridSizeX, gridSizeY, gridSizeZ } = state.dimensions;
+            selectionFolder.add(selectionState, 'startX', 0, gridSizeX - 1, 1).name('Start X').onChange(updateSelectionBoxHelper);
+            selectionFolder.add(selectionState, 'startY', 0, gridSizeY - 1, 1).name('Start Y').onChange(updateSelectionBoxHelper);
+            selectionFolder.add(selectionState, 'startZ', 0, gridSizeZ - 1, 1).name('Start Z').onChange(updateSelectionBoxHelper);
+            selectionFolder.add(selectionState, 'endX', 0, gridSizeX - 1, 1).name('End X').onChange(updateSelectionBoxHelper);
+            selectionFolder.add(selectionState, 'endY', 0, gridSizeY - 1, 1).name('End Y').onChange(updateSelectionBoxHelper);
+            selectionFolder.add(selectionState, 'endZ', 0, gridSizeZ - 1, 1).name('End Z').onChange(updateSelectionBoxHelper);
+            selectionFolder.add(selectionState, 'selectArea').name('Select Area');
+            selectionFolder.open();
+        }
+
+        function updateSelectionBoxHelper() {
+            const { gridSizeX, gridSizeY, gridSizeZ } = state.dimensions;
+            
+            // FIX: Use min/max to ensure correct cube dimensions
+            const minX = Math.min(selectionState.startX, selectionState.endX);
+            const maxX = Math.max(selectionState.startX, selectionState.endX);
+            const minY = Math.min(selectionState.startY, selectionState.endY);
+            const maxY = Math.max(selectionState.startY, selectionState.endY);
+            const minZ = Math.min(selectionState.startZ, selectionState.endZ);
+            const maxZ = Math.max(selectionState.startZ, selectionState.endZ);
+
+            const SPACING = 1.5;
+
+            // Calculate center
+            const cX = ((minX + maxX) / 2 - gridSizeX / 2) * SPACING;
+            const cY = ((minY + maxY) / 2 - gridSizeY / 2) * SPACING;
+            const cZ = ((minZ + maxZ) / 2 - gridSizeZ / 2) * SPACING;
+
+            // Calculate scale
+            const sX = (maxX - minX + 1) * SPACING;
+            const sY = (maxY - minY + 1) * SPACING;
+            const sZ = (maxZ - minZ + 1) * SPACING;
+
+            selectionBoxHelper.position.set(cX, cY, cZ);
+            selectionBoxHelper.scale.set(sX, sY, sZ);
+        }
+        
+        function selectArea() {
+            selectedNodes.clear();
+            const { gridSizeX, gridSizeY, gridSizeZ } = state.dimensions;
+            
+            // FIX: Use min/max to ensure correct selection
+            const minX = Math.min(selectionState.startX, selectionState.endX);
+            const maxX = Math.max(selectionState.startX, selectionState.endX);
+            const minY = Math.min(selectionState.startY, selectionState.endY);
+            const maxY = Math.max(selectionState.startY, selectionState.endY);
+            const minZ = Math.min(selectionState.startZ, selectionState.endZ);
+            const maxZ = Math.max(selectionState.startZ, selectionState.endZ);
+
+            for (let y = minY; y <= maxY; y++) {
+                for (let z = minZ; z <= maxZ; z++) {
+                    for (let x = minX; x <= maxX; x++) {
+                        const latticeIndex = x + z * gridSizeX + y * gridSizeX * gridSizeZ;
+                        if (packetData.has(latticeIndex)) {
+                            selectedNodes.add(latticeIndex);
+                        }
+                    }
+                }
+            }
+            
+            // --- FIX: Activate all newly selected nodes ---
+            if (selectedNodes.size === 0) {
+                // If the selection is empty, clear everything
+                updateEditorGUI();
+                updateSelectionHighlights();
+                document.getElementById('packet-details').style.display = 'none';
+                return;
+            }
+
+            // Activate all newly selected nodes
+            selectedNodes.forEach(index => {
+                updateNodeVisuals(index);
+            });
+            // --- END FIX ---
+
+            console.log(`${selectedNodes.size} nodes selected.`);
+            updateEditorGUI();
+            updateSelectionHighlights();
+            
+            // Update the info panel for the first selected item
+            if (selectedNodes.size > 0) {
+                updatePacketInfoPanel(selectedNodes.values().next().value);
+            }
+        }
+
+        function updateEditorGUI() {
+            if (editorGUI) { editorGUI.destroy(); editorGUI = null; }
+            if (selectedNodes.size === 0) {
+                document.getElementById('packet-details').style.display = 'none';
+                updateSelectionHighlights();
+                return;
+            }
+            const firstNodeIndex = selectedNodes.values().next().value;
+            const firstNodeData = packetData.get(firstNodeIndex);
+            
+            // Unpack the 32-bit "quaternion" into RGBA values
+            const {r, g, b, a} = quaternionToRgba(firstNodeData.quaternion);
+            editorState.quatR = r;
+            editorState.quatG = g;
+            editorState.quatB = b;
+            editorState.quatA = a;
+            
+            editorState.formId = firstNodeData.formId;
+            editorState.amplitudeId = firstNodeData.amplitudeId;
+            editorState.frequencyId = firstNodeData.frequencyId;
+            editorState.spinClassId = firstNodeData.spinClassId;
+            editorState.scalingFactor = firstNodeData.payloadScalingFactor;
+            editorState.parity = firstNodeData.reserved;
+
+            editorGUI = gui.addFolder(`Node Editor (${selectedNodes.size} selected)`);
+            editorGUI.domElement.style.top = `calc(4rem + 10px)`; // Offset for header
+            editorGUI.domElement.addEventListener('mousedown', (e) => e.stopPropagation()); // Prevent click-through
+            editorGUI.open();
+            
+            const shapeNames = {};
+            for (const id in SHAPE_DATA) { shapeNames[SHAPE_DATA[id].name] = parseInt(id); }
+            editorGUI.add(editorState, 'formId', shapeNames).name('Structural Form').onChange(applyEditorChanges);
+            
+            // NEW: Sliders for RGBA (the "Quaternion" components)
+            const quatFolder = editorGUI.addFolder('Color (Quaternion)');
+            quatFolder.add(editorState, 'quatR', 0, 255, 1).name('R (8-bit)').onChange(applyEditorChanges);
+            quatFolder.add(editorState, 'quatG', 0, 255, 1).name('G (8-bit)').onChange(applyEditorChanges);
+            quatFolder.add(editorState, 'quatB', 0, 255, 1).name('B (8-bit)').onChange(applyEditorChanges);
+            quatFolder.add(editorState, 'quatA', 0, 255, 1).name('A (8-bit)').onChange(applyEditorChanges);
+
+            editorGUI.add(editorState, 'amplitudeId', 0, 7, 1).name('Amplitude ID').onChange(applyEditorChanges);
+            editorGUI.add(editorState, 'frequencyId', 0, 31, 1).name('Frequency ID').onChange(applyEditorChanges);
+            editorGUI.add(editorState, 'spinClassId', 0, 7, 1).name('Spin Class ID').onChange(applyEditorChanges);
+            editorGUI.add(editorState, 'scalingFactor', 0, 65535, 1).name('Scaling Factor').onChange(applyEditorChanges);
+            editorGUI.add(editorState, 'parity', 0, 1, 1).name('Parity').onChange(applyEditorChanges);
+        }
+
+        function applyEditorChanges() {
+            selectedNodes.forEach(index => {
+                const data = packetData.get(index);
+                
+                // Pack the RGBA values from the editor into the 32-bit int
+                data.quaternion = rgbaToQuaternion(
+                    editorState.quatR, 
+                    editorState.quatG, 
+                    editorState.quatB, 
+                    editorState.quatA
+                );
+
+                data.formId = parseInt(editorState.formId);
+                data.amplitudeId = editorState.amplitudeId;
+                data.frequencyId = editorState.frequencyId;
+                data.spinClassId = editorState.spinClassId;
+                data.payloadScalingFactor = editorState.scalingFactor;
+                data.reserved = editorState.parity;
+                packetData.set(index, data);
+                updateNodeVisuals(index);
+            });
+            if(selectedNodes.size > 0) { 
+                updatePacketInfoPanel(selectedNodes.values().next().value); 
+                updateSelectionHighlights();
+            }
+        }
+
+        // --- NEW ---
+        function updateSelectionHighlights() {
+            if (!selectionHighlights) return; // Not ready yet
+
+            const pos = particleSystem.geometry.attributes.position;
+            selectionHighlights.count = selectedNodes.size;
+            
+            let i = 0;
+            selectedNodes.forEach(index => {
+                if (pos.count > index) { // Ensure index is valid
+                    dummy.position.set(pos.getX(index), pos.getY(index), pos.getZ(index));
+                    dummy.updateMatrix();
+                    selectionHighlights.setMatrixAt(i, dummy.matrix);
+                    i++;
+                }
+            });
+            
+            selectionHighlights.instanceMatrix.needsUpdate = true;
+        }
+        
+        // --- NEW (FIXED) ---
+        function handleFPSMovement(deltaTime) {
+            const speed = moveSpeed * deltaTime;
+            
+            // FIX: Use moveForward/moveRight which respect camera direction
+            if (keysPressed['w']) {
+                fpsControls.moveForward(speed); // W moves forward
+            }
+            if (keysPressed['s']) {
+                fpsControls.moveForward(-speed); // S moves backward
+            }
+            if (keysPressed['a']) {
+                fpsControls.moveRight(-speed); // A moves left
+            }
+            if (keysPressed['d']) {
+                fpsControls.moveRight(speed); // D moves right
+            }
+
+            // Vertical movement
+            if (keysPressed['c']) { // C for Up
+                camera.position.y += speed;
+            }
+            if (keysPressed['shift']) { // Shift for Down
+                camera.position.y -= speed;
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            if (state.controlMode === 'orbit') {
+                orbitControls.update();
+            } else if (state.controlMode === 'firstPerson') {
+                handleFPSMovement(delta);
+            }
+
+            if (state.isPlaying) {
+                const posArray = particleSystem.geometry.attributes.position;
+                const HALF_GRID_SIZE_Y = (state.dimensions.gridSizeY / 2) * 1.5;
+                
+                // Update node positions
+                for (let i = 0; i < posArray.count; i++) {
+                    let y = posArray.getY(i);
+                    y += state.particleSpeed;
+                    if (y > HALF_GRID_SIZE_Y) { y = -HALF_GRID_SIZE_Y; }
+                    posArray.setY(i, y);
+                    if (activeNodes.has(i)) { 
+                        activeNodes.get(i).position.y = y; 
+                    }
+                }
+                posArray.needsUpdate = true;
+
+                // Update highlight positions
+                if (selectionHighlights.count > 0) {
+                    let i = 0;
+                    selectedNodes.forEach(index => {
+                        if (posArray.count > index) { // Check index validity
+                            dummy.position.set(posArray.getX(index), posArray.getY(index), posArray.getZ(index));
+                            dummy.updateMatrix();
+                            selectionHighlights.setMatrixAt(i, dummy.matrix);
+                            i++;
+                        }
+                    });
+                    selectionHighlights.instanceMatrix.needsUpdate = true;
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function getPlaceholderPolyhedronData() {
+            const vertices = [ 1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1 ];
+            const indices = [ 2, 1, 0, 0, 3, 2, 1, 3, 0, 2, 3, 1 ];
+            const scaledVertices = vertices.map(v => v * 0.4);
+            return [scaledVertices, indices];
+        }
+
+        function onWindowResize() {
+            const headerHeight = document.querySelector('header').offsetHeight;
+            const simWidth = window.innerWidth;
+            const simHeight = window.innerHeight;
+
+            camera.aspect = simWidth / (simHeight - headerHeight);
+            camera.updateProjectionMatrix();
+            renderer.setSize(simWidth, simHeight);
+            renderer.setViewport(0, 0, simWidth, simHeight);
+        }
+
+        init();
+    </script>
+</body>
+</html>
