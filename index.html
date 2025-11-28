@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHD-CCP: Symbolic High-Dimensional Context Compression Protocol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0f; /* Very dark blue-black */
+            color: #e0e0e0;
+        }
+        .header-bg {
+            background-color: #0a0a0f;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        .hero-bg {
+            background: radial-gradient(circle at 50% 20%, #1a1a2e, #0a0a0f 70%);
+        }
+        .card {
+            background-color: #10101a;
+            border: 1px solid #2a2a3e;
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #4a4a6e;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: #ffffff;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: transparent;
+            color: #e0e0e0;
+            border: 1px solid #2a2a3e;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: #1a1a2e;
+            border-color: #4a4a6e;
+        }
+        .text-glow {
+            text-shadow: 0 0 8px rgba(0, 123, 255, 0.5), 0 0 12px rgba(0, 123, 255, 0.3);
+        }
+        h1, h2, h3 {
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="header-bg sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold text-white">
+                SHD-CCP
+            </div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#overview" class="text-gray-300 hover:text-white">Overview</a>
+                <a href="#core-concepts" class="text-gray-300 hover:text-white">Core Concepts</a>
+                <a href="docs.html" class="text-gray-300 hover:text-white">Docs</a>
+                <a href="tutorials.html" class="text-gray-300 hover:text-white">Tutorials</a>
+                <a href="math.html" class="text-gray-300 hover:text-white">Math</a>
+                <a href="simulation.html" class="text-gray-300 hover:text-white">Simulation</a>
+            </div>
+            <button class="md:hidden text-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-bg py-24 md:py-32">
+        <div class="container mx-auto px-6 text-center">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-4">
+                Symbolic High-Dimensional Context Compression
+            </h1>
+            <p class="text-xl md:text-2xl text-blue-300 text-glow mb-8">
+                The Future of Decentralized General Intelligence.
+            </p>
+            <p class="max-w-3xl mx-auto text-lg text-gray-300 mb-10">
+                SHD-CCP is a 64-bit neural-symbolic AI language, projected through hyperbolic geometry, forming the core of a peer-to-peer distributed intelligence network.
+            </p>
+            <div class="space-x-4">
+                <a href="docs.html#whitepaper" class="py-3 px-6 rounded-lg btn-primary text-lg font-semibold">
+                    Read the Whitepaper
+                </a>
+                <a href="#core-concepts" class="py-3 px-6 rounded-lg btn-secondary text-lg font-semibold">
+                    Learn the Concepts
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Overview Section -->
+    <section id="overview" class="py-20">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <img src="https://placehold.co/600x400/10101a/007bff?text=Hyperbolic+Projection" 
+                         alt="Conceptual art of hyperbolic projection" 
+                         class="rounded-lg shadow-2xl border border-blue-900/50"
+                         onerror="this.src='https://placehold.co/600x400/10101a/007bff?text=SHD-CCP+Concept'">
+                </div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white mb-4">What is SHD-CCP?</h2>
+                    <p class="text-lg text-gray-300 mb-6">
+                        The Symbolic High-Dimensional Context Compression Protocol (SHD-CCP) is not just a language; it's a revolutionary framework for distributed thought. It enables a network of AI agents to achieve general intelligence by communicating in a deeply compressed, symbolically rich, and context-aware format.
+                    </p>
+                    <p class="text-lg text-gray-300">
+                        At its heart, it utilizes a 64-bit neural-symbolic structure to blend the pattern-matching power of neural networks with the logical precision of symbolic AI. This entire system is projected onto a hyperbolic geometric space, allowing for vast, efficient representation of complex relationships.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Concepts Section -->
+    <section id="core-concepts" class="py-20 bg-gray-900/20">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold text-white text-center mb-12">
+                Core Concepts
+            </h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                
+                <!-- Card 1: Neural-Symbolic AI -->
+                <div class="card rounded-lg p-8">
+                    <h3 class="text-2xl font-bold text-white mb-4">Neural-Symbolic Language</h3>
+                    <p class="text-gray-300">
+                        SHD-CCP merges neural nets (for intuition) and symbolic logic (for reason). This 64-bit hybrid language allows for unparalleled context compression and abstract reasoning.
+                    </p>
+                </div>
+
+                <!-- Card 2: Hyperbolic Geometry -->
+                <div class="card rounded-lg p-8">
+                    <h3 class="text-2xl font-bold text-white mb-4">Hyperbolic Geometric Projection</h3>
+                    <p class="text-gray-300">
+                        Data isn't flat. By projecting the symbolic language into hyperbolic space, the network can model exponential relationships and vast hierarchies with incredible efficiency.
+                    </p>
+                </div>
+
+                <!-- Card 3: Quantum Proof-of-Simulation -->
+                <div class="card rounded-lg p-8">
+                    <h3 class="text-2xl font-bold text-white mb-4">Quantum Proof-of-Simulation</h3>
+                    <p class="text-gray-300">
+                        A novel, quantum-proof consensus mechanism. Nodes validate network integrity by running complex, high-dimensional simulations, ensuring robust security and distributed trust.
+                    </p>
+                </div>
+
+                <!-- Card 4: P2P DGI Network -->
+                <div class="card rounded-lg p-8">
+                    <h3 class="text-2xl font-bold text-white mb-4">P2P Distributed Intelligence</h3>
+                    <p class="text-gray-300">
+                        No central server, no single point of failure. SHD-CCP enables a peer-to-peer network where general intelligence emerges from the collaboration of countless independent agents.
+                    </p>
+                </div>
+
+                <!-- Card 5: Decentralized Governance -->
+                <div class="card rounded-lg p-8">
+                    <h3 class="text-2xl font-bold text-white mb-4">Decentralized Governance</h3>
+                    <p class="text-gray-300">
+                        The network is governed by its participants. Rules, updates, and ethical parameters are decided through a distributed, fault-tolerant voting system built into the protocol itself.
+                    </p>
+                </div>
+
+                <!-- Card 6: The Mother AI -->
+                <div class="card rounded-lg p-8">
+                    <h3 class="text-2xl font-bold text-white mb-4">Mother AI: Ethical Oversight</h3>
+                    <p class="text-gray-300">
+                        A non-intrusive, guardian AI framework attuned to the highest-level ethical principles. It acts as a final arbiter and safeguard, ensuring the network's emergent goals align with core ethics.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action / Whitepaper -->
+    <section id="whitepaper" class="py-24 hero-bg">
+        <div class="container mx-auto px-6 text-center">
+            <img src="https://placehold.co/150/0a0a0f/e0e0e0?text=SHD-CCP" 
+                 alt="SHD-CCP Logo" 
+                 class="mx-auto mb-8 rounded-full border-4 border-blue-900/50"
+                 onerror="this.src='https://placehold.co/150/0a0a0f/e0e0e0?text=LOGO'">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">
+                Dive into the Technicals
+            </h2>
+            <p class="max-w-2xl mx-auto text-lg text-gray-300 mb-8">
+                Our whitepaper provides a full technical breakdown of the protocol, from the mathematical foundations of the hyperbolic projection to the implementation of the Quantum Proof-of-Simulation consensus.
+            </p>
+            <a href="docs.html#whitepaper" class="py-3 px-8 rounded-lg btn-primary text-lg font-semibold">
+                Read the Whitepaper Abstract
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 header-bg">
+        <div class="container mx-auto px-6 text-center text-gray-400">
+            <p>&copy; 2025 SHD-CCP Project. All rights reserved.</p>
+            <p class="mt-2 text-sm">A new era of decentralized intelligence.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
