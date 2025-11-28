@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en" class="dark"> <!-- Force dark by default -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHD-CCP Tutorials</title>
+    <!-- All styling and JS libraries are copied from docs.html to maintain theme -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        /* All neon theme styles copied from docs.html */
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; overflow-x: hidden; color: #e0e0e0; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background-color: #0f0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #3f3; }
+        .sidebar-nav { height: calc(100vh - 4rem); overflow-y: auto; }
+        .floating-section { background-color: rgba(10, 20, 10, 0.4); border: 1px solid rgba(0, 255, 0, 0.2); border-radius: 8px; padding: 2.5rem; margin-bottom: 2rem; box-shadow: 0 4px 15px rgba(0, 255, 0, 0.2), 0 0 30px rgba(0, 255, 0, 0.1); backdrop-filter: blur(5px); transition: all 0.3s ease; }
+        .floating-section:hover { border-color: rgba(0, 255, 0, 0.4); box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3), 0 0 40px rgba(0, 255, 0, 0.2); transform: translateY(-2px); }
+        .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4 { color: #0f0; text-shadow: 0 0 8px rgba(0, 255, 0, 0.5); }
+        .dark .prose strong { color: #3f3; }
+        .dark .prose a { color: #0f0; text-decoration: none; border-bottom: 1px dashed rgba(0, 255, 0, 0.5); }
+        .dark .prose a:hover { color: #3f3; border-bottom-color: #3f3; }
+        .dark .prose :where(code):not(pre code) { background-color: rgba(0, 255, 0, 0.1); color: #0f0; padding: 0.1em 0.3em; border-radius: 3px; }
+        .dark .prose hr { border-top: 1px dashed rgba(0, 255, 0, 0.3); }
+        #particles-js { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background-color: #000; z-index: -1; }
+        .content-overlay { position: relative; z-index: 1; }
+
+        /* --- New Styles for Tutorial Page --- */
+        .filter-btn {
+            background-color: transparent;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #0f0;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            background-color: rgba(0, 255, 0, 0.2);
+            border-color: rgba(0, 255, 0, 0.7);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+        #search-bar {
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #e0e0e0;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            width: 100%;
+        }
+        #search-bar:focus {
+            outline: none;
+            border-color: #0f0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+        .tutorial-card {
+            background-color: rgba(10, 20, 10, 0.6); /* Slightly more opaque */
+            border: 1px solid rgba(0, 255, 0, 0.2);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 255, 0, 0.1);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            display: flex; /* Used by filter logic */
+            flex-direction: column;
+            height: 100%; /* For grid layout */
+        }
+        .tutorial-card:hover {
+            border-color: rgba(0, 255, 0, 0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 255, 0, 0.2);
+        }
+        .tutorial-card h3 {
+            color: #0f0;
+            text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 0;
+        }
+        .tutorial-card p {
+            color: #ccc;
+            font-size: 0.9rem;
+            flex-grow: 1;
+        }
+        .tutorial-card-tags {
+            margin-top: 1rem;
+        }
+        .tutorial-card-tags span {
+            background-color: rgba(0, 255, 0, 0.1);
+            color: #0f0;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        .tutorial-card a {
+            color: #0f0;
+            text-decoration: none;
+            border-bottom: 0;
+        }
+    </style>
+    
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+    <script>
+        // Manages light/dark mode (copied from docs.html)
+        function setupThemeToggle() {
+            const themeToggle = document.getElementById('theme-toggle');
+            if (localStorage.theme === 'light') {
+                document.documentElement.classList.remove('dark');
+                if (themeToggle) themeToggle.innerHTML = getIcon('moon');
+            } else {
+                document.documentElement.classList.add('dark');
+                if (themeToggle) themeToggle.innerHTML = getIcon('sun');
+            }
+            themeToggle?.addEventListener('click', () => {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.theme = isDark ? 'dark' : 'light';
+                themeToggle.innerHTML = isDark ? getIcon('sun') : getIcon('moon');
+            });
+        }
+
+        // SVG icons for toggle (copied from docs.html)
+        function getIcon(icon) {
+            if (icon === 'moon') return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`;
+            if (icon === 'sun') return `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`;
+            return '';
+        }
+
+        // --- New Tutorial Filter Logic ---
+        function setupTutorialFilters() {
+            const searchBar = document.getElementById('search-bar');
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const tutorialGrid = document.getElementById('tutorial-grid');
+            const allCards = tutorialGrid ? Array.from(tutorialGrid.children) : [];
+            let activeCategory = 'all';
+
+            function filterTutorials() {
+                const searchTerm = searchBar.value.toLowerCase();
+                
+                allCards.forEach(card => {
+                    const title = card.querySelector('h3').textContent.toLowerCase();
+                    const description = card.querySelector('p').textContent.toLowerCase();
+                    const category = card.dataset.category;
+
+                    const categoryMatch = (activeCategory === 'all' || category === activeCategory);
+                    const searchMatch = (title.includes(searchTerm) || description.includes(searchTerm));
+
+                    if (categoryMatch && searchMatch) {
+                        card.style.display = 'flex';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            }
+
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active button state
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    
+                    activeCategory = button.dataset.category;
+                    filterTutorials();
+                });
+            });
+
+            if (searchBar) {
+                searchBar.addEventListener('input', filterTutorials);
+            }
+        }
+        
+        // Run all setup scripts on content load
+        document.addEventListener('DOMContentLoaded', () => {
+            setupThemeToggle();
+            
+            // Sidebar toggles (copied from docs.html)
+            document.querySelectorAll('.sidebar-nav .collapsible-button').forEach(button => {
+                const content = button.nextElementSibling;
+                button.addEventListener('click', () => {
+                    content.classList.toggle('hidden');
+                    button.querySelector('svg').classList.toggle('rotate-90');
+                });
+            });
+
+            // Initialize KaTeX
+            try { if (renderMathInElement) renderMathInElement(document.body, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false }); } catch (e) { console.error("KaTeX failed", e); }
+            
+            // Initialize Highlight.js
+            try { if (hljs) hljs.highlightAll(); } catch (e) { console.error("Highlight.js failed", e); }
+
+            // Initialize Particles.js (copied from docs.html)
+            if (window.particlesJS) {
+                particlesJS('particles-js', {
+                    "particles": { "number": { "value": 80, "density": { "enable": true, "value_area": 800 } }, "color": { "value": "#00FF00" }, "shape": { "type": "circle" }, "opacity": { "value": 0.5 }, "size": { "value": 3, "random": true }, "line_linked": { "enable": true, "distance": 150, "color": "#00FF00", "opacity": 0.4, "width": 1 }, "move": { "enable": true, "speed": 2, "direction": "none", "out_mode": "out" } },
+                    "interactivity": { "detect_on": "canvas", "events": { "onhover": { "enable": true, "mode": "repulse" }, "onclick": { "enable": true, "mode": "push" }, "resize": true }, "modes": { "repulse": { "distance": 200, "duration": 0.4 }, "push": { "particles_nb": 4 } } },
+                    "retina_detect": true
+                });
+            }
+
+            // Setup the new tutorial filters
+            setupTutorialFilters();
+        });
+    </script>
+</head>
+<body class="bg-black text-gray-100 dark:bg-black dark:text-gray-100">
+
+    <div id="particles-js"></div>
+    <div class="content-overlay">
+        
+        <header class="sticky top-0 z-40 w-full h-16 bg-black dark:bg-black border-b border-green-800 flex-shrink-0">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-full">
+                <div class="flex items-center">
+                    <a href="index.html" class="text-xl font-bold text-green-400 dark:text-green-400 hover:text-green-300">SHD-CCP Protocol</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Home</a>
+                    <a href="docs.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Documentation</a>
+                    <a href="tutorials.html" class="text-sm font-bold text-green-500 dark:text-green-500">Tutorials</a>
+                    <a href="math.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Math</a>
+                    <a href="simulation.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Simulation</a>
+                    <button id="theme-toggle" class="text-gray-300 dark:text-gray-300 hover:text-green-300" title="Toggle light/dark mode"></button>
+                </div>
+            </div>
+        </header>
+
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row">
+                
+                <!-- Left Sidebar -->
+                <aside class="w-full md:w-64 flex-shrink-0 md:border-r md:border-green-800">
+                    <nav class="sticky top-16 sidebar-nav py-8 overflow-y-auto">
+                        <ul class="space-y-6">
+                            <li>
+                                <h5 class="mb-3 text-sm font-semibold text-green-400 uppercase tracking-wider">Tutorial Categories</h5>
+                                <ul class="space-y-2">
+                                    <li><a href="#category-beginner" class="block text-gray-300 hover:text-green-300">Beginner Guides</a></li>
+                                    <li><a href="#category-packets" class="block text-gray-300 hover:text-green-300">64-bit Packets</a></li>
+                                    <li><a href="#category-network" class="block text-gray-300 hover:text-green-300">Network & QPoS</a></li>
+                                    <li><a href="#category-advanced" class="block text-gray-300 hover:text-green-300">Advanced Topics</a></li>
+                                </ul>
+                            </li>
+                            <li>
+                                <h5 class="mb-3 text-sm font-semibold text-green-400 uppercase tracking-wider">Related Links</h5>
+                                <ul class="space-y-2">
+                                    <li><a href="docs.html" class="block text-gray-300 hover:text-green-300">Full Documentation</a></li>
+                                    <li><a href="docs.html#math-foundation" class="block text-gray-300 hover:text-green-300">Mathematical Foundations</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </nav>
+                </aside>
+
+                <!-- Main Content Area -->
+                <main class="flex-1 w-full min-w-0 py-8 md:px-8 lg:px-12">
+                    
+                    <section class="floating-section prose dark:prose-invert max-w-none">
+                        <h1>SHD-CCP Tutorials</h1>
+                        <p class="lead">Welcome to the tutorial portal. Use the filters below to find tutorials by category or search term. Each card links to a detailed, self-contained guide.</p>
+                    </section>
+
+                    <section class="floating-section">
+                        <div class="flex flex-col md:flex-row gap-4 mb-6">
+                            <input type="text" id="search-bar" placeholder="Search tutorials..." />
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="filter-btn active" data-category="all">All Categories</button>
+                            <button class="filter-btn" data-category="beginner">Beginner</button>
+                            <button class="filter-btn" data-category="packet">64-bit Packet</button>
+                            <button class="filter-btn" data-category="network">Network & QPoS</button>
+                            <button class="filter-btn" data-category="advanced">Advanced</button>
+                        </div>
+                    </section>
+
+                    <!-- Tutorial Grid -->
+                    <!-- This is where your list of HTML tutorials will be represented -->
+                    <div id="tutorial-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Example Card 1 (Beginner) -->
+                        <div class="tutorial-card" data-category="beginner">
+                            <a href="tutorials/01-first-packet.html">
+                                <h3>Sending Your First Packet</h3>
+                                <p>Learn the basics of the client, construct a simple symbol, and send your first "hello world" packet to the network.</p>
+                                <div class="tutorial-card-tags">
+                                    <span>Beginner</span>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <!-- Example Card 2 (Beginner) -->
+                        <div class="tutorial-card" data-category="beginner">
+                            <a href="tutorials/02-network-setup.html">
+                                <h3>Network Setup & Client Install</h3>
+                                <p>A step-by-step guide to installing the `shd-ccp-client` and connecting to a peer node for the first time.</p>
+                                <div class="tutorial-card-tags">
+                                    <span>Beginner</span>
+                                </div>
+                            </a>
+                        </div>
+
+                        <!-- Example Card 3 (Packet) -->
+                        <div class="tutorial-card" data-category="packet">
+                            <a href="tutorials/03-packet-breakdown.html">
+                                <h3>Deconstructing the 64-bit Packet</h3>
+                                <p>A deep dive into the 4 main segments of a packet: Context, Operator, Ethics, and Payload. Learn what each bit does.</p>
+                                <div class="tutorial-card-tags">
+                                    <span>64-bit Packet</span>
+                                </div>
+                            </a>
+                        </div>
+
+                        <!-- Example Card 4 (Packet) -->
+                        <div class="tutorial-card" data-category="packet">
+                            <a href="tutorials/04-logical-operators.html">
+                                <h3>Using Logical Operators</h3>
+                                <p>Go beyond ASSERT. Learn how to use OBSERVE, QUERY, and CAUSE to build complex logic chains and relationships.</p>
+                                <div class="tutorial-card-tags">
+                                    <span>64-bit Packet</span>
+                                </div>
+                            </a>
+                        </div>
+
+                        <!-- Example Card 5 (Network) -->
+                        <div class="tutorial-card" data-category="network">
+                            <a href="tutorials/05-understanding-qpos.html">
+                                <h3>Understanding QPoS</h3>
+                                <p>How does consensus work? This guide explains Quantum Proof-of-Simulation and how nodes validate network state.</p>
+                                <div class="tutorial-card-tags">
+                                    <span>Network & QPoS</span>
+                                </div>
+                            </a>
+                        </div>
+
+                        <!-- Example Card 6 (Advanced) -->
+                        <div class="tutorial-card" data-category="advanced">
+                            <a href="tutorials/06-hyperbolic-math.html">
+                                <h3>Hyperbolic Projections Explained</h3>
+                                <p>The math behind the magic. Explore the Poincaré disk model and understand why hyperbolic geometry is key to context.</p>
+                                <div class="tutorial-card-tags">
+                                    <span>Advanced</span>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <!-- Add more cards here for each of your HTML tutorials -->
+
+                    </div>
+                </main>
+
+                <!-- Right Sidebar (Empty for this page, or could mirror left) -->
+                <aside class="hidden lg:block w-64 flex-shrink-0">
+                    <div class="sticky top-16 sidebar-nav py-8 overflow-y-auto">
+                        <h5 class="mb-4 text-sm font-semibold text-green-400 uppercase tracking-wider">Categories</h5>
+                        <ul class="space-y-2">
+                            <li><a href="#category-beginner" class="block text-sm text-gray-400 hover:text-green-300">Beginner</a></li>
+                            <li><a href="#category-packets" class="block text-sm text-gray-400 hover:text-green-300">64-bit Packet</a></li>
+                            <li><a href="#category-network" class="block text-sm text-gray-400 hover:text-green-300">Network & QPoS</a></li>
+                            <li><a href="#category-advanced" class="block text-sm text-gray-400 hover:text-green-300">Advanced</a></li>
+                        </ul>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
