@@ -62,13 +62,15 @@
             <div class="text-2xl font-bold text-white">
                 SHD-CCP
             </div>
-            <div class="hidden md:flex space-x-6">
+            <div class="hidden md:flex space-x-6 items-center">
                 <a href="#overview" class="text-gray-300 hover:text-white">Overview</a>
                 <a href="#core-concepts" class="text-gray-300 hover:text-white">Core Concepts</a>
                 <a href="docs.html" class="text-gray-300 hover:text-white">Docs</a>
                 <a href="tutorials.html" class="text-gray-300 hover:text-white">Tutorials</a>
                 <a href="math.html" class="text-gray-300 hover:text-white">Math</a>
                 <a href="simulation.html" class="text-gray-300 hover:text-white">Simulation</a>
+                <!-- Auth Container -->
+                <div class="auth-btn-container pl-4 border-l border-gray-700"></div>
             </div>
             <button class="md:hidden text-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -210,6 +212,9 @@
             <p class="mt-2 text-sm">A new era of decentralized intelligence.</p>
         </div>
     </footer>
+
+    <!-- Firebase Auth Logic - UPDATED PATH -->
+    <script type="module" src="src/auth.js"></script>
 
 </body>
 </html>
