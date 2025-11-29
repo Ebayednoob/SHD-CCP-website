@@ -106,9 +106,101 @@
             text-decoration: none;
             border-bottom: 0;
         }
+        
+        /* New styles for completion toggle */
+        .completion-toggle {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            cursor: pointer;
+        }
+        .completion-toggle span {
+            font-size: 0.8rem;
+            color: #888;
+            margin-right: 0.5rem;
+        }
+        .completion-checkbox {
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #555;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+        }
+        .completion-checkbox:checked {
+            background-color: #0f0;
+            border-color: #0f0;
+        }
+        .completion-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            color: #000;
+            font-size: 0.9rem;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
     </style>
     
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+    <script type="module">
+        import { toggleTutorialComplete, getCompletedTutorials } from './src/auth.js';
+
+        // --- Logic to sync UI with Database ---
+        async function refreshProgressUI() {
+            const completedIds = await getCompletedTutorials();
+            
+            document.querySelectorAll('.completion-checkbox').forEach(box => {
+                const tutorialId = box.dataset.tid;
+                if (completedIds.includes(tutorialId)) {
+                    box.checked = true;
+                    box.parentElement.querySelector('span').textContent = "Completed";
+                    box.parentElement.querySelector('span').style.color = "#0f0";
+                } else {
+                    box.checked = false;
+                    box.parentElement.querySelector('span').textContent = "Mark as Complete";
+                    box.parentElement.querySelector('span').style.color = "#888";
+                }
+            });
+        }
+
+        // Listen for the custom auth event from auth.js
+        window.addEventListener('authChanged', (e) => {
+            if (e.detail.user) {
+                refreshProgressUI();
+            }
+        });
+
+        // Setup click listeners for checkboxes
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.addEventListener('change', async (e) => {
+                if (e.target.classList.contains('completion-checkbox')) {
+                    e.preventDefault(); // Prevent instant toggle, wait for DB
+                    const tid = e.target.dataset.tid;
+                    
+                    // Optimistic UI update
+                    const label = e.target.parentElement.querySelector('span');
+                    if (e.target.checked) {
+                        label.textContent = "Completed";
+                        label.style.color = "#0f0";
+                    } else {
+                        label.textContent = "Mark as Complete";
+                        label.style.color = "#888";
+                    }
+
+                    // Save to DB
+                    await toggleTutorialComplete(tid);
+                }
+            });
+        });
+    </script>
 
     <script>
         // Manages light/dark mode (copied from docs.html)
@@ -227,6 +319,8 @@
                     <a href="tutorials.html" class="text-sm font-bold text-green-500 dark:text-green-500">Tutorials</a>
                     <a href="math.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Math</a>
                     <a href="simulation.html" class="text-sm font-medium text-gray-300 dark:text-gray-300 hover:text-green-300">Simulation</a>
+                    <!-- Auth Container -->
+                    <div class="auth-btn-container"></div>
                     <button id="theme-toggle" class="text-gray-300 dark:text-gray-300 hover:text-green-300" title="Toggle light/dark mode"></button>
                 </div>
             </div>
@@ -293,6 +387,11 @@
                                     <span>Beginner</span>
                                 </div>
                             </a>
+                            <!-- New Tracking UI -->
+                            <label class="completion-toggle">
+                                <span>Mark as Complete</span>
+                                <input type="checkbox" class="completion-checkbox" data-tid="01-first-packet">
+                            </label>
                         </div>
                         
                         <!-- Example Card 2 (Beginner) -->
@@ -304,6 +403,10 @@
                                     <span>Beginner</span>
                                 </div>
                             </a>
+                            <label class="completion-toggle">
+                                <span>Mark as Complete</span>
+                                <input type="checkbox" class="completion-checkbox" data-tid="02-network-setup">
+                            </label>
                         </div>
 
                         <!-- Example Card 3 (Packet) -->
@@ -315,6 +418,10 @@
                                     <span>64-bit Packet</span>
                                 </div>
                             </a>
+                            <label class="completion-toggle">
+                                <span>Mark as Complete</span>
+                                <input type="checkbox" class="completion-checkbox" data-tid="03-packet-breakdown">
+                            </label>
                         </div>
 
                         <!-- Example Card 4 (Packet) -->
@@ -326,6 +433,10 @@
                                     <span>64-bit Packet</span>
                                 </div>
                             </a>
+                            <label class="completion-toggle">
+                                <span>Mark as Complete</span>
+                                <input type="checkbox" class="completion-checkbox" data-tid="04-logical-operators">
+                            </label>
                         </div>
 
                         <!-- Example Card 5 (Network) -->
@@ -337,6 +448,10 @@
                                     <span>Network & QPoS</span>
                                 </div>
                             </a>
+                            <label class="completion-toggle">
+                                <span>Mark as Complete</span>
+                                <input type="checkbox" class="completion-checkbox" data-tid="05-understanding-qpos">
+                            </label>
                         </div>
 
                         <!-- Example Card 6 (Advanced) -->
@@ -348,10 +463,12 @@
                                     <span>Advanced</span>
                                 </div>
                             </a>
+                            <label class="completion-toggle">
+                                <span>Mark as Complete</span>
+                                <input type="checkbox" class="completion-checkbox" data-tid="06-hyperbolic-math">
+                            </label>
                         </div>
                         
-                        <!-- Add more cards here for each of your HTML tutorials -->
-
                     </div>
                 </main>
 
@@ -370,5 +487,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Firebase Auth Logic - UPDATED PATH -->
+    <script type="module" src="src/auth.js"></script>
+
 </body>
 </html>
