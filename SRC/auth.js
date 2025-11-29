@@ -109,7 +109,7 @@ export async function getCompletedTutorials() {
 // --- UI Management ---
 
 function updateAuthButton(user) {
-    const authBtns = document.querySelectorAll('.auth-btn-container'); // Use class for multiple buttons if needed
+    const authBtns = document.querySelectorAll('.auth-btn-container'); 
     
     authBtns.forEach(container => {
         if (user) {
@@ -119,14 +119,17 @@ function updateAuthButton(user) {
                     <button id="logout-btn" class="text-sm font-medium text-gray-300 hover:text-white">Sign Out</button>
                 </div>
             `;
-            document.getElementById('logout-btn').addEventListener('click', logout);
+            // Re-attach listener since we replaced HTML
+            const btn = container.querySelector('#logout-btn');
+            if(btn) btn.addEventListener('click', logout);
         } else {
             container.innerHTML = `
                 <button id="login-btn" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-4 rounded transition-colors">
                     Sign In
                 </button>
             `;
-            document.getElementById('login-btn').addEventListener('click', login);
+            const btn = container.querySelector('#login-btn');
+            if(btn) btn.addEventListener('click', login);
         }
     });
 }
@@ -134,7 +137,6 @@ function updateAuthButton(user) {
 // Initialize Auth Listener
 onAuthStateChanged(auth, async (user) => {
     updateAuthButton(user);
-    
     // Dispatch a custom event so other scripts know auth is ready
     const event = new CustomEvent('authChanged', { detail: { user } });
     window.dispatchEvent(event);
