@@ -9,13 +9,16 @@ Follow this file layout to ensure all navigation links, tutorials, and the simul
 
 Your local project folder (**`shd-ccp-website/`**) should look *exactly* like this before you push to GitHub:
 
-```plaintext
+```
 shd-ccp-website/
 ├── index.html                # Main Landing Page (Hero, Overview, Concepts)
 ├── docs.html                 # Technical Documentation Portal (Protocol specs)
 ├── tutorials.html            # Tutorials Hub (Searchable grid of guides)
 ├── math.html                 # Mathematical Foundations Hub (Hyperbolic geometry specs)
 ├── simulation.html           # 3D Simulation Engine (Three.js lattice visualizer)
+│
+├── src/                      # DIRECTORY: JavaScript Source Code
+│   └── auth.js               # Firebase Authentication & Logic module
 │
 ├── tutorials/                # DIRECTORY: Contains individual tutorial pages
 │   ├── 01-first-packet.html
@@ -25,7 +28,7 @@ shd-ccp-website/
 │   ├── 05-understanding-qpos.html
 │   └── 06-hyperbolic-math.html
 │
-├── math/                     # DIRECTORY: Individual math guide pages
+├── math/                     # DIRECTORY: Contains individual math guide pages
 │   ├── 01-intro-hyperbolic.html
 │   ├── 02-distance-metrics.html
 │   ├── 03-poincare-disk.html
