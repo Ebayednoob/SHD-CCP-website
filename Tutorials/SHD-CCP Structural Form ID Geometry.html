@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codex: SHD-CCP Structural Forms</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- three.js for 3D rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        .three-canvas {
+            width: 100%;
+            height: 250px;
+            border-radius: 0.5rem;
+            border: 1px solid #047857; /* A green-700 border */
+            cursor: grab;
+        }
+        .three-canvas:active {
+            cursor: grabbing;
+        }
+        .property-table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+        .property-table th, .property-table td {
+            border: 1px solid #065f46;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        .property-table th {
+            background-color: #064e3b;
+            color: #a7f3d0;
+        }
+    </style>
+</head>
+<body class="bg-black text-green-500" style="font-family: 'Inter', sans-serif;">
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 bg-gray-900/50 p-4 md:p-6 border-b md:border-b-0 md:border-r border-green-900">
+            <h2 class="text-2xl font-bold text-green-300 mb-6">Tiers</h2>
+            <nav id="navigation" class="flex flex-row md:flex-col gap-2">
+                <!-- Navigation Links will be injected by JS -->
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+            <h1 class="text-4xl font-bold text-green-200 mb-6">Codex of SHD-CCP Structural Forms</h1>
+            <p class="text-lg leading-relaxed mb-6">
+                This document details the 12 primary geometric solids used as **Structural Form IDs** within the Symbolic High-Dimensional Context-Compression Protocol (SHD-CCP). Each ID maps to a pre-compiled 'thought-template' or computational kernel, with its properties defined by the 64-bit Codex packet.
+            </p>
+            
+            <div id="content-container">
+                <!-- Tier 1: The Platonic Primitives -->
+                <section id="tier-1" class="content-section mb-8">
+                    <h2 class="text-3xl font-semibold text-green-300 mb-4 border-b border-green-800 pb-2">Tier 1: The Platonic Primitives (The 5 Axioms)</h2>
+                    <p class="text-lg leading-relaxed mb-6">
+                        IDs 0-4 represent foundational concepts. They are perfectly regular and serve as the building blocks for more complex ideas.
+                    </p>
+                    
+                    <!-- Tetrahedron -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-green-300 mb-2">Structural Form ID 0: Tetrahedron</h3>
+                        <p class="mb-4">The simplest solid. Represents a single, indivisible concept, a foundational axiom, or a point of origin.</p>
+                        <div class="three-canvas-container mt-4 mb-4">
+                            <div id="view-tetrahedron" class="three-canvas"></div>
+                        </div>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Packet Protocol Integration</h4>
+                        <p class="text-green-400 leading-relaxed">
+                            As the most fundamental unit, a packet with ID 0 represents an atomic concept. It would typically have a high `Amplitude ID` (e.g., 7 for maximum importance) and a `Spin Class ID` of 0 to denote a static, unchanging truth. The `Payload Scaling Factor` would likely be 1.0, as the concept is self-contained and not scaling a larger payload.
+                        </p>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Geometric Properties</h4>
+                        <div class="overflow-x-auto">
+                            <table class="property-table">
+                                <thead><tr><th>Property</th><th>Value</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Vertices</td><td>4</td></tr>
+                                    <tr><td>Edges</td><td>6</td></tr>
+                                    <tr><td>Faces</td><td>4 (Triangles)</td></tr>
+                                    <tr><td>Vertex Coordinates</td><td>(1, 1, 1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Key Formulas (edge length = a)</h4>
+                        <div class="text-green-400 space-y-1 bg-gray-900/50 p-4 rounded-md">
+                            <p><strong>Surface Area (A):</strong> A = &radic;3 &middot; a&sup2;</p>
+                            <p><strong>Volume (V):</strong> V = a&sup3; / (6&radic;2)</p>
+                        </div>
+                        <pre class="bg-gray-900 text-gray-200 p-4 rounded-lg overflow-x-auto mt-4"><code>{
+  "description": "Packet for the concept of 'Truth'",
+  "structural_form_id": 0,
+  "amplitude_id": 7,
+  "frequency_id": 0,
+  "spin_class_id": 0,
+  "payload_scaler": 1.0,
+  "quaternion_state": "[~ W, X, Y, Z ~]"
+}</code></pre>
+                    </div>
+
+                    <!-- Cube -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-green-300 mb-2">Structural Form ID 1: Cube (Hexahedron)</h3>
+                        <p class="mb-4">Represents structured, orthogonal, or man-made concepts.</p>
+                        <div class="three-canvas-container mt-4 mb-4">
+                            <div id="view-cube" class="three-canvas"></div>
+                        </div>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Packet Protocol Integration</h4>
+                        <p class="text-green-400 leading-relaxed">
+                            A packet with ID 1 implies a structured data payload follows. The `Spin Class ID` could define how to iterate through the faces (e.g., sequential, opposing pairs). The `Payload Scaling Factor` would be critical, defining the size of the structured data block that the packet precedes.
+                        </p>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Geometric Properties</h4>
+                        <div class="overflow-x-auto">
+                           <table class="property-table">
+                                <thead><tr><th>Property</th><th>Value</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Vertices</td><td>8</td></tr>
+                                    <tr><td>Edges</td><td>12</td></tr>
+                                    <tr><td>Faces</td><td>6 (Squares)</td></tr>
+                                    <tr><td>Vertex Coordinates</td><td>All permutations of (±1, ±1, ±1)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Key Formulas (edge length = a)</h4>
+                        <div class="text-green-400 space-y-1 bg-gray-900/50 p-4 rounded-md">
+                            <p><strong>Surface Area (A):</strong> A = 6a&sup2;</p>
+                            <p><strong>Volume (V):</strong> V = a&sup3;</p>
+                        </div>
+                        <pre class="bg-gray-900 text-gray-200 p-4 rounded-lg overflow-x-auto mt-4"><code>{
+  "description": "Packet for a legal ruling payload",
+  "structural_form_id": 1,
+  "amplitude_id": 5,
+  "frequency_id": 10,
+  "spin_class_id": 1,
+  "payload_scaler": 256.0,
+  "quaternion_state": "[~ W, X, Y, Z ~]"
+}</code></pre>
+                    </div>
+
+                    <!-- Octahedron -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-green-300 mb-2">Structural Form ID 2: Octahedron</h3>
+                        <p class="mb-4">The dual of the cube. Represents a point of connection, a hub, or a set of balanced relationships.</p>
+                         <div class="three-canvas-container mt-4 mb-4">
+                            <div id="view-octahedron" class="three-canvas"></div>
+                        </div>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Packet Protocol Integration</h4>
+                        <p class="text-green-400 leading-relaxed">
+                            ID 2 signifies a relational graph or network. The `Spin Class ID` could define the type of graph traversal algorithm to apply (e.g., breadth-first, depth-first). The `Amplitude ID` might represent the centrality or connectivity of the graph's root node. The quaternion itself could represent the overall orientation or state of the entire network.
+                        </p>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Geometric Properties</h4>
+                        <div class="overflow-x-auto">
+                           <table class="property-table">
+                                <thead><tr><th>Property</th><th>Value</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Vertices</td><td>6</td></tr>
+                                    <tr><td>Edges</td><td>12</td></tr>
+                                    <tr><td>Faces</td><td>8 (Triangles)</td></tr>
+                                    <tr><td>Vertex Coordinates</td><td>All permutations of (±1, 0, 0)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Key Formulas (edge length = a)</h4>
+                        <div class="text-green-400 space-y-1 bg-gray-900/50 p-4 rounded-md">
+                            <p><strong>Surface Area (A):</strong> A = 2&radic;3 &middot; a&sup2;</p>
+                            <p><strong>Volume (V):</strong> V = (&radic;2 / 3) &middot; a&sup3;</p>
+                        </div>
+                        <pre class="bg-gray-900 text-gray-200 p-4 rounded-lg overflow-x-auto mt-4"><code>{
+  "description": "Packet representing a social network hub",
+  "structural_form_id": 2,
+  "amplitude_id": 6,
+  "frequency_id": 20,
+  "spin_class_id": 2,
+  "payload_scaler": 0.0,
+  "quaternion_state": "[~ W, X, Y, Z ~]"
+}</code></pre>
+                    </div>
+                </section>
+
+                <!-- Tier 2: The First Modifiers -->
+                <section id="tier-2" class="content-section mb-8 hidden">
+                     <h2 class="text-3xl font-semibold text-green-300 mb-4 border-b border-green-800 pb-2">Tier 2: The First Modifiers</h2>
+                     <p class="text-lg leading-relaxed mb-6">
+                        IDs 5-7 represent a primary concept that has been modified, or a relationship between two different classes of ideas.
+                    </p>
+                    <!-- Truncated Tetrahedron -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-green-300 mb-2">Structural Form ID 5: Truncated Tetrahedron</h3>
+                        <p class="mb-4">A foundational idea (Tetrahedron) whose points have been "blunted" or modified.</p>
+                        <div class="three-canvas-container mt-4 mb-4">
+                            <div id="view-truncated-tetrahedron" class="three-canvas"></div>
+                        </div>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Packet Protocol Integration</h4>
+                        <p class="text-green-400 leading-relaxed">
+                            This ID signifies a core axiom with attached conditions. The GPU kernel for ID 5 would first process the core concept (represented by the hexagonal faces) and then apply the modifying data (from the triangular faces). The `Spin Class ID` could dictate how the modifiers interact with the core axiom (e.g., as filters, weights, or exceptions).
+                        </p>
+                        <h4 class="text-lg font-semibold text-green-300 mt-6 mb-2">Geometric Properties</h4>
+                        <div class="overflow-x-auto">
+                           <table class="property-table">
+                                <thead><tr><th>Property</th><th>Value</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Vertices</td><td>12</td></tr>
+                                    <tr><td>Edges</td><td>18</td></tr>
+                                    <tr><td>Faces</td><td>8 (4 Triangles, 4 Hexagons)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <pre class="bg-gray-900 text-gray-200 p-4 rounded-lg overflow-x-auto mt-4"><code>{
+  "description": "Packet for a conditional axiom",
+  "structural_form_id": 5,
+  "amplitude_id": 6,
+  "frequency_id": 5,
+  "spin_class_id": 3,
+  "payload_scaler": 32.0,
+  "quaternion_state": "[~ W, X, Y, Z ~]"
+}</code></pre>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        // --- NAVIGATION SCRIPT ---
+        document.addEventListener('DOMContentLoaded', function () {
+            const navigation = document.getElementById('navigation');
+            const contentContainer = document.getElementById('content-container');
+            const sections = contentContainer.querySelectorAll('.content-section');
+            const sectionData = [
+                { id: 'tier-1', title: 'Tier 1: Primitives' },
+                { id: 'tier-2', title: 'Tier 2: Modifiers' },
+                { id: 'tier-3', title: 'Tier 3: Compounds' },
+                { id: 'tier-4', title: 'Tier 4: Qualifiers' }
+            ];
+
+            // Populate navigation
+            sectionData.forEach((data, index) => {
+                const link = document.createElement('a');
+                link.href = '#';
+                link.textContent = data.title;
+                link.dataset.target = data.id;
+                link.className = 'nav-link block w-full text-left p-2 rounded-md transition-colors duration-200 hover:bg-green-800/50 text-green-400';
+                navigation.appendChild(link);
+            });
+
+            const navLinks = navigation.querySelectorAll('.nav-link');
+
+            function styleActiveLink(activeLink) {
+                navLinks.forEach(link => {
+                    link.classList.remove('bg-green-700/70', 'text-green-100', 'font-semibold');
+                });
+                if (activeLink) {
+                   activeLink.classList.add('bg-green-700/70', 'text-green-100', 'font-semibold');
+                }
+            }
+
+            function showContent(targetId) {
+                sections.forEach(section => {
+                    section.classList.toggle('hidden', section.id !== targetId);
+                });
+                // Find all canvases in the now active section and initialize them
+                const activeSection = document.getElementById(targetId);
+                if (activeSection) {
+                    initThreeDViews(activeSection);
+                }
+            }
+
+            navigation.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetLink = e.target.closest('.nav-link');
+                if (targetLink) {
+                    const targetId = targetLink.dataset.target;
+                    showContent(targetId);
+                    styleActiveLink(targetLink);
+                }
+            });
+
+            // Initialize first tab
+            const firstLink = navLinks[0];
+            if(firstLink) {
+                styleActiveLink(firstLink);
+                showContent(firstLink.dataset.target);
+            }
+        });
+
+        // --- 3D VIEW SCRIPT ---
+        const runningAnimations = new Map();
+
+        function initThreeDViews(containerElement) {
+            const viewers = containerElement.querySelectorAll('.three-canvas');
+            viewers.forEach(viewer => {
+                // Only initialize if it hasn't been already and is visible
+                const isVisible = !!( viewer.offsetWidth || viewer.offsetHeight || viewer.getClientRects().length );
+                if (!runningAnimations.has(viewer.id) && isVisible) {
+                    setupThreeDView(viewer);
+                }
+            });
+        }
+
+        function setupThreeDView(container) {
+            // Scene setup
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.z = 3;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Clear previous canvas if any
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+            container.appendChild(renderer.domElement);
+
+            // Material
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x34d399, // A nice green
+                wireframe: true,
+            });
+
+            // Geometry
+            let geometry;
+            switch (container.id) {
+                case 'view-tetrahedron':
+                    geometry = new THREE.TetrahedronGeometry(1.5);
+                    break;
+                case 'view-cube':
+                    geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+                    break;
+                case 'view-octahedron':
+                    geometry = new THREE.OctahedronGeometry(1.5);
+                    break;
+                case 'view-icosahedron':
+                    geometry = new THREE.IcosahedronGeometry(1.5);
+                    break;
+                case 'view-dodecahedron':
+                    geometry = new THREE.DodecahedronGeometry(1.5);
+                    break;
+                case 'view-truncated-tetrahedron':
+                    geometry = new THREE.TetrahedronGeometry(1.5, 1);
+                    break;
+                case 'view-cuboctahedron':
+                     geometry = new THREE.OctahedronGeometry(1.2, 1);
+                    break;
+                case 'view-truncated-icosahedron':
+                    geometry = new THREE.IcosahedronGeometry(1.5, 1);
+                    break;
+                case 'view-rhombicuboctahedron':
+                    geometry = new THREE.BoxGeometry(1.2, 1.2, 1.2, 2, 2, 2);
+                    break;
+                case 'view-icosidodecahedron':
+                    geometry = new THREE.DodecahedronGeometry(1.5, 1);
+                    break;
+                case 'view-truncated-cuboctahedron':
+                     geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5, 2, 2, 2);
+                    break;
+                case 'view-snub-cube':
+                     geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5, 4, 4, 4);
+                    break;
+                case 'view-snub-dodecahedron':
+                    geometry = new THREE.DodecahedronGeometry(1.5, 2);
+                    break;
+                default:
+                    geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+            }
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            let animationFrameId;
+
+            const animate = () => {
+                if (!runningAnimations.has(container.id)) {
+                    cancelAnimationFrame(animationFrameId);
+                    return;
+                }
+                animationFrameId = requestAnimationFrame(animate);
+                mesh.rotation.x += 0.001;
+                mesh.rotation.y += 0.002;
+                renderer.render(scene, camera);
+            };
+
+            let isMouseDown = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            container.addEventListener('mousedown', e => { isMouseDown = true; previousMousePosition = { x: e.offsetX, y: e.offsetY }; });
+            container.addEventListener('mouseup', e => { isMouseDown = false; });
+            container.addEventListener('mouseleave', e => { isMouseDown = false; });
+            container.addEventListener('mousemove', e => {
+                if (!isMouseDown) return;
+                const deltaMove = {
+                    x: e.offsetX - previousMousePosition.x,
+                    y: e.offsetY - previousMousePosition.y
+                };
+                mesh.rotation.y += deltaMove.x * 0.005;
+                mesh.rotation.x += deltaMove.y * 0.005;
+                previousMousePosition = { x: e.offsetX, y: e.offsetY };
+            });
+
+            container.addEventListener('wheel', e => {
+                e.preventDefault();
+                camera.position.z += e.deltaY * 0.01;
+                camera.position.z = Math.min(Math.max(1.5, camera.position.z), 10);
+            });
+
+            const onResize = () => {
+                if(container.clientWidth > 0 && container.clientHeight > 0) {
+                    camera.aspect = container.clientWidth / container.clientHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                }
+            };
+            const resizeObserver = new ResizeObserver(onResize);
+            resizeObserver.observe(container);
+            
+            runningAnimations.set(container.id, { 
+                stop: () => {
+                    resizeObserver.disconnect();
+                    cancelAnimationFrame(animationFrameId);
+                    runningAnimations.delete(container.id);
+                } 
+            });
+            animate();
+        }
+    </script>
+</body>
+</html>
