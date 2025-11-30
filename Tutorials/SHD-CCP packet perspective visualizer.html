@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Perspective Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #F3F4F6;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .card {
+            background-color: #1F2937;
+            border-radius: 0.75rem;
+            border: 1px solid #374151;
+        }
+        .label {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background-color: rgba(17, 24, 39, 0.7);
+            color: #D1D5DB;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            pointer-events: none;
+        }
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        /* Custom select arrow */
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.25em;
+        }
+        /* Custom slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #374151;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover { opacity: 1; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .control-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #9CA3AF;
+            margin-bottom: 0.5rem;
+        }
+        .control-label .mono {
+            color: #E5E7EB;
+            font-weight: 700;
+        }
+        .control-value {
+            font-family: 'Roboto Mono', monospace;
+            color: #E5E7EB;
+            font-weight: 700;
+            width: 3rem;
+            text-align: right;
+        }
+        /* Quaternion sphere container */
+        #quat-sphere-container {
+            width: 80px; /* Fixed size for the sphere view */
+            height: 80px;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #374151;
+            background-color: #111827; /* Match body bg */
+            cursor: not-allowed;
+        }
+        
+        /* --- Tooltip Styles --- */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        .tooltip-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 9999px;
+            background-color: #4B5563;
+            color: #D1D5DB;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-left: 0.25rem;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            width: 280px;
+            background-color: #111827;
+            color: #D1D5DB;
+            border: 1px solid #374151;
+            text-align: left;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 400;
+            
+            position: absolute;
+            z-index: 10;
+            bottom: 125%; /* Position above the icon */
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            pointer-events: none;
+        }
+        .tooltip-text::after { /* Tooltip arrow */
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #374151 transparent transparent transparent;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+
+    <!-- Tutorial Modal -->
+    <div id="tutorial-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="card w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b border-gray-600">
+                <h2 class="text-xl font-bold text-white">Tutorial: Visualizing the SHD-CCP Pipeline</h2>
+                <button id="close-modal-btn" class="text-2xl text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4 text-gray-300">
+                <h3 class="text-lg font-semibold text-white">Introduction: From Data Packet to Visual Truth</h3>
+                <p>This tutorial walks you through using the visualizer to decode a <b>SHD-CCP 64-Bit Packet</b>. This new version separates the <b>Static Structural Form</b> from the <b>Internal Quaternion Pointer</b>.</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><b>The "Perceived Packet" (3D View):</b> This is our "truth." It shows the static 3D shape and the <b>internal red pointer</b> that represents the `Quaternion` orientation.</li>
+                    <li><b>The "Fact" Views (2D Projections):</b> These are the partial, 2D representations. They are <b>dynamic</b> and will show projections based on the 3D face you select.</li>
+                </ul>
+                <p>Let's walk through the pipeline step-by-step.</p>
+                
+                <hr class="border-gray-600">
+
+                <h3 class="text-lg font-semibold text-white">Step 1 & 2: Decode Form & Dynamics</h3>
+                <p>These fields define the object's static properties: its size, material, shape, and intensity.</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><b>Payload Scaler (Size):</b> Controls the master scale of the 3D shape.</li>
+                    <li><b>Dynamics (Freq/Spin):</b> Controls the pulse speed and material (Solid/Wireframe) of the 3D shape.</li>
+                    <li><b>State & ID (Form/Amp):</b> Controls the shape's geometry and its opacity.</li>
+                    <li><b>Simulate this step:</b> Use the first three control columns to set up the static <b>Structural Form</b>.</li>
+                </ul>
+
+                <h3 class="text-lg font-semibold text-white">Step 3: Decode Perspective (Internal Quaternion)</h3>
+                <p>This is the object's orientation, represented by the <b>internal red pointer</b>.</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><b>Quaternion (W,X,Y,Z):</b> A 4-part number that describes a specific 3D rotation.</li>
+                    <li><b>How it Works:</b> The 3D shape itself **no longer rotates**. The `Quaternion` data is now applied *only* to the red pointer inside the object. This shows the "direction" the packet is "pointing."</li>
+                    <li><b>Simulate this step:</b> Adjust the <b>W, X, Y, Z (FP8)</b> sliders. Watch the internal red pointer rotate, while the main shape stays still. The <b>Quaternion Sphere</b> shows an isolated view of this rotation.</li>
+                </ul>
+                
+                <h3 class="text-lg font-semibold text-white">Step 4: Project & Analyze (The "Facts")</h3>
+                <p>The "facts" are dynamic 2D projections based on the face you select from the 3D "truth".</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><b>How it Works:</b> The 2D views start blank. You must "activate" a perspective to generate the "facts."</li>
+                    <li><b>Simulate this step:</b>
+                        <ol class="list-decimal list-inside ml-4">
+                            <li><b>Click any numbered face</b> on the 3D "Perceived Packet."</li>
+                            <li>The face will highlight yellow.</li>
+                            <li>All three "Fact" windows will instantly update to show new perspectives based on that face's normal vector:</li>
+                            <ul class="list-disc list-inside ml-4">
+                                <li><b>Fact 1 (Face-On):</b> Shows the view looking directly *at* the face.</li>
+                                <li><b>Fact 2 (Inverse):</b> Shows the view from the exact *opposite* side.</li>
+                                <li><b>Fact 3 (Side 90°):</b> Shows the view from 90 degrees to the side.</li>
+                            </ul>
+                            <li>Each 2D view now has an orientation gizmo (Red:X, Green:Y, Blue:Z) to show the world's orientation from that new perspective.</li>
+                        </ol>
+                    </li>
+                </ul>
+                <p>This demonstrates how the "facts" are not static, but are *perspectives* generated by focusing on one aspect of the "truth" (the selected face).</p>
+            </div>
+            <div class="p-4 border-t border-gray-600 text-right">
+                <button id="close-modal-btn-bottom" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                    Close Tutorial
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="h-screen w-screen flex flex-col p-4 md:p-6 lg:p-8 gap-4">
+        <!-- Header -->
+        <header class="flex-shrink-0 flex flex-col gap-4">
+            <div class="flex flex-col md:flex-row justify-between md:items-center gap-2">
+                <div class="text-center md:text-left">
+                    <h1 class="text-2xl md:text-3xl font-bold text-white">Packet Perspective Visualizer</h1>
+                    <p class="text-md text-gray-400">A visual decoder for the SHD-CCP 64-Bit Schema.</p>
+                </div>
+                <button id="tutorial-btn" class="flex-shrink-0 text-sm bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                    Show Tutorial
+                </button>
+            </div>
+
+            <!-- SHD-CCP Controls -->
+            <div class="card p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                
+                <!-- Step 1: Payload Scaler -->
+                <div>
+                    <label for="scaler-slider" class="control-label">
+                        Step 1: <span class="mono">Payload Scaler (FP16)</span> &rarr; Size
+                        <span class="tooltip">
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text"><b>Payload Scaler (Bits 63-48):</b> A 16-bit floating-point number that controls the master scale, or size, of the 3D structural form.</span>
+                        </span>
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="scaler-slider" min="0.5" max="2.0" value="1" step="0.01">
+                        <span id="scaler-value" class="control-value">1.00</span>
+                    </div>
+                </div>
+
+                <!-- Step 2: Dynamics -->
+                <div>
+                    <label class="control-label">Step 2: <span class="mono">Dynamics (8-bit)</span> &rarr; Motion
+                        <span class="tooltip">
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text"><b>Dynamics (Bits 47-40):</b> Controls the visual behavior.<br><b>Freq ID (5-bit):</b> Sets the speed of the pulsing animation.<br><b>Spin ID (3-bit):</b> Toggles the material between a solid mesh and a wireframe.</span>
+                        </span>
+                    </label>
+                    <div class="flex items-center gap-4">
+                        <div class="flex-1">
+                            <label for="freq-select" class="text-sm text-gray-400 mono">Freq ID (5)</label>
+                            <select id="freq-select" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <option value="0">0 (Off)</option>
+                                <option value="0.5">1 (Slow)</option>
+                                <option value="1">2 (Mid)</option>
+                                <option value="2">3 (Fast)</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label for="spin-select" class="text-sm text-gray-400 mono">Spin ID (3)</label>
+                            <select id="spin-select" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <option value="Solid">Solid</option>
+                                <option value="Wireframe">Wireframe</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: State & ID -->
+                <div>
+                    <label class="control-label">Step 3: <span class="mono">State & ID (8-bit)</span> &rarr; Form
+                         <span class="tooltip">
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text"><b>State & ID (Bits 39-32):</b> Defines the object's appearance.<br><b>Form ID (4-bit):</b> Selects the 3D geometric shape to render from a lookup table.<br><b>Amp ID (3-bit):</b> Controls the "Amplitude" or opacity/intensity of the object.</span>
+                        </span>
+                    </label>
+                    <div class="flex items-center gap-4">
+                         <div class="flex-1">
+                            <label for="shape-select" class="text-sm text-gray-400 mono">Form ID (4)</label>
+                            <select id="shape-select" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <!-- Options populated by JS -->
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label for="amp-slider" class="text-sm text-gray-400 mono">Amp ID (3)</label>
+                            <div class="flex items-center gap-2">
+                                <input type="range" id="amp-slider" min="0.1" max="1" value="1" step="0.01">
+                                <span id="amp-value" class="control-value text-sm">1.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Quaternion -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="control-label">Step 4: <span class="mono">Quaternion (FP8x4)</span> &rarr; Pointer
+                             <span class="tooltip">
+                                <span class="tooltip-icon">?</span>
+                                <span class="tooltip-text"><b>Quaternion (Bits 31-0):</b> Four 8-bit floating-point numbers (W,X,Y,Z) that define a 3D rotation. This controls the orientation of the <b>internal red pointer</b>, representing the packet's perspective.</span>
+                            </span>
+                        </label>
+                        <button id="reset-btn" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1 px-2 rounded-md transition">Reset</button>
+                    </div>
+                    <div class="flex items-center justify-between gap-4">
+                        <!-- Sliders for W, X, Y, Z -->
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 flex-grow">
+                            <div class="flex items-center gap-2">
+                                <label for="q-w" class="w-4 font-mono text-gray-300">W:</label>
+                                <input type="range" id="q-w" min="0" max="255" value="255" step="1">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="q-x" class="w-4 font-mono text-gray-300">X:</label>
+                                <input type="range" id="q-x" min="0" max="255" value="0" step="1">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="q-y" class="w-4 font-mono text-gray-300">Y:</label>
+                                <input type="range" id="q-y" min="0" max="255" value="0" step="1">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="q-z" class="w-4 font-mono text-gray-300">Z:</label>
+                                <input type="range" id="q-z" min="0" max="255" value="0" step="1">
+                            </div>
+                        </div>
+                        <!-- NEW: Quaternion Sphere -->
+                        <div id="quat-sphere-container" class="flex-shrink-0" title="Quaternion Orientation">
+                            <!-- 3D scene will be injected here -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow flex flex-col gap-4 md:gap-6 overflow-hidden">
+            <!-- 3D View (Main Window) -->
+            <div class="card p-4 flex flex-col relative flex-grow min-h-[40vh]">
+                <div class="label">Step 4: "Perceived Packet" (3D Truth)</div>
+                <div id="scene-3d-container" class="flex-grow h-full w-full rounded-md overflow-hidden"></div>
+            </div>
+
+            <!-- 2D Projections (Below) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 flex-shrink-0 h-[25vh] min-h-[200px]">
+                 <div class="card p-4 flex flex-col relative">
+                    <div class="label">Fact 1: Face-On (Click a Face)</div>
+                    <div id="scene-2d-top-container" class="flex-grow h-full w-full rounded-md overflow-hidden"></div>
+                </div>
+                 <div class="card p-4 flex flex-col relative">
+                    <div class="label">Fact 2: Inverse (Mirror)</div>
+                    <div id="scene-2d-front-container" class="flex-grow h-full w-full rounded-md overflow-hidden"></div>
+                </div>
+                 <div class="card p-4 flex flex-col relative">
+                    <div class="label">Fact 3: Side (90&deg; Offset)</div>
+                    <div id="scene-2d-side-container" class="flex-grow h-full w-full rounded-md overflow-hidden"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- Core three.js setup ---
+        let scene3d, camera3d, renderer3d, controls3d;
+        let scene2dTop, camera2dTop, renderer2dTop, gizmo2dTop;
+        let scene2dFront, camera2dFront, renderer2dFront, gizmo2dFront;
+        let scene2dSide, camera2dSide, renderer2dSide, gizmo2dSide;
+        let sceneQuat, cameraQuat, rendererQuat, quatPointer; // NEW: Quaternion sphere scene
+        let structuralForm, topObject, frontObject, sideObject; 
+        let internalPointer; // Represents the quaternion in main scene
+        let mainMaterial, wireframeMaterial, highlightMaterial;
+        let faceNumbersGroup, highlightGroup3D;
+        let highlightTop, highlightFront, highlightSide; // Separate highlights for 2D views
+        let raycaster, mouse;
+        let clock = new THREE.Clock();
+        let pulseSpeed = 0;
+        const upVector = new THREE.Vector3(0, 1, 0); // Re-usable up vector
+
+        const containers = {
+            '3d': document.getElementById('scene-3d-container'),
+            '2dTop': document.getElementById('scene-2d-top-container'),
+            '2dFront': document.getElementById('scene-2d-front-container'),
+            '2dSide': document.getElementById('scene-2d-side-container'),
+            'quat': document.getElementById('quat-sphere-container'), // NEW
+        };
+
+        // --- UI Controls ---
+        const controls = {
+            shapeSelect: document.getElementById('shape-select'),
+            scalerSlider: document.getElementById('scaler-slider'),
+            scalerValue: document.getElementById('scaler-value'),
+            freqSelect: document.getElementById('freq-select'),
+            spinSelect: document.getElementById('spin-select'),
+            ampSlider: document.getElementById('amp-slider'),
+            ampValue: document.getElementById('amp-value'),
+            qW: document.getElementById('q-w'),
+            qX: document.getElementById('q-x'),
+            qY: document.getElementById('q-y'),
+            qZ: document.getElementById('q-z'),
+            resetBtn: document.getElementById('reset-btn'),
+            tutorialBtn: document.getElementById('tutorial-btn'),
+            modal: document.getElementById('tutorial-modal'),
+            closeModalBtn: document.getElementById('close-modal-btn'),
+            closeModalBtnBottom: document.getElementById('close-modal-btn-bottom'),
+        };
+        
+        const shapeList = [
+            'Tetrahedron', 'Cube (Hexahedron)', 'Octahedron', 'Dodecahedron', 'Icosahedron',
+            'Truncated Icosahedron (Soccer Ball)', 'Icosidodecahedron', 'Rhombicuboctahedron',
+            'Truncated Cube', 'Cuboctahedron', 'Sphere', 'Torus', 'Cone',
+        ];
+
+        // --- Initialization ---
+        function init() {
+            // Populate dropdown
+            shapeList.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                controls.shapeSelect.appendChild(option);
+            });
+
+            // --- Materials ---
+            mainMaterial = new THREE.MeshStandardMaterial({
+                color: 0x4f46e5,
+                metalness: 0.3,
+                roughness: 0.5,
+                transparent: true,
+                opacity: 1.0,
+                side: THREE.DoubleSide
+            });
+            wireframeMaterial = new THREE.MeshBasicMaterial({
+                color: 0x34d399,
+                wireframe: true,
+                transparent: true,
+                opacity: 1.0
+            });
+            highlightMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffff00,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.7,
+                polygonOffset: true,
+                polygonOffsetFactor: -1.0,
+                polygonOffsetUnits: -4.0
+            });
+
+            // Raycaster for face selection
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // --- 3D Scene (Main) ---
+            scene3d = new THREE.Scene();
+            const { width, height } = containers['3d'].getBoundingClientRect();
+            camera3d = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+            camera3d.position.z = 6;
+            renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer3d.setSize(width, height);
+            containers['3d'].appendChild(renderer3d.domElement);
+            controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
+            controls3d.enableDamping = true;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene3d.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            scene3d.add(directionalLight);
+
+            internalPointer = new THREE.AxesHelper(1); // Red:X, Green:Y, Blue:Z
+            scene3d.add(internalPointer);
+
+            // --- 2D Scenes (Dynamic Cameras) ---
+            scene2dTop = new THREE.Scene();
+            camera2dTop = new THREE.OrthographicCamera(-3, 3, 3, -3, 0.1, 100);
+            gizmo2dTop = new THREE.AxesHelper(1); 
+            scene2dTop.add(gizmo2dTop);
+            renderer2dTop = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            containers['2dTop'].appendChild(renderer2dTop.domElement);
+            camera2dTop.position.set(0, 10, 0); camera2dTop.lookAt(0, 0, 0);
+
+            scene2dFront = new THREE.Scene();
+            camera2dFront = new THREE.OrthographicCamera(-3, 3, 3, -3, 0.1, 100);
+            gizmo2dFront = new THREE.AxesHelper(1); 
+            scene2dFront.add(gizmo2dFront);
+            renderer2dFront = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            containers['2dFront'].appendChild(renderer2dFront.domElement);
+            camera2dFront.position.set(0, 0, 10); camera2dFront.lookAt(0, 0, 0);
+
+            scene2dSide = new THREE.Scene();
+            camera2dSide = new THREE.OrthographicCamera(-3, 3, 3, -3, 0.1, 100);
+            gizmo2dSide = new THREE.AxesHelper(1); 
+            scene2dSide.add(gizmo2dSide);
+            renderer2dSide = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            containers['2dSide'].appendChild(renderer2dSide.domElement);
+            camera2dSide.position.set(10, 0, 0); camera2dSide.lookAt(0, 0, 0);
+
+            // --- NEW: Quaternion Sphere Scene ---
+            sceneQuat = new THREE.Scene();
+            const quatRect = containers['quat'].getBoundingClientRect();
+            cameraQuat = new THREE.PerspectiveCamera(50, quatRect.width / quatRect.height, 0.1, 100);
+            cameraQuat.position.z = 2.5;
+            rendererQuat = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            rendererQuat.setSize(quatRect.width, quatRect.height);
+            containers['quat'].appendChild(rendererQuat.domElement);
+            // Add a simple sphere and pointer
+            const quatSphereGeo = new THREE.SphereGeometry(1, 16, 16);
+            const quatSphereMat = new THREE.MeshBasicMaterial({ color: 0x374151, wireframe: true });
+            const quatSphere = new THREE.Mesh(quatSphereGeo, quatSphereMat);
+            sceneQuat.add(quatSphere);
+            quatPointer = new THREE.AxesHelper(1.2);
+            sceneQuat.add(quatPointer);
+
+
+            // --- Event Listeners ---
+            addListeners();
+
+            // Initial shape
+            createShape(controls.shapeSelect.value);
+
+            animate();
+            window.addEventListener('resize', onWindowResize);
+            onWindowResize();
+        }
+        
+        function addListeners() {
+            controls.shapeSelect.addEventListener('change', () => createShape(controls.shapeSelect.value));
+            controls.scalerSlider.addEventListener('input', updateFromControls);
+            controls.freqSelect.addEventListener('change', updateFromControls);
+            controls.spinSelect.addEventListener('change', updateFromControls);
+            controls.ampSlider.addEventListener('input', updateFromControls);
+            controls.qW.addEventListener('input', updateFromControls);
+            controls.qX.addEventListener('input', updateFromControls);
+            controls.qY.addEventListener('input', updateFromControls);
+            controls.qZ.addEventListener('input', updateFromControls);
+            controls.resetBtn.addEventListener('click', resetRotation);
+            containers['3d'].addEventListener('click', onCanvasClick);
+
+            // Modal Controls
+            controls.tutorialBtn.addEventListener('click', () => {
+                controls.modal.classList.remove('hidden');
+            });
+            const closeModal = () => {
+                controls.modal.classList.add('hidden');
+            };
+            controls.closeModalBtn.addEventListener('click', closeModal);
+            controls.closeModalBtnBottom.addEventListener('click', closeModal);
+            controls.modal.addEventListener('click', (e) => {
+                if (e.target === controls.modal) closeModal(); 
+            });
+        }
+
+        // --- SHD-CCP Pipeline Functions ---
+
+        function createShape(name) { // Step 3: Form ID
+            // Clean up old objects
+            if (structuralForm) {
+                [structuralForm, topObject, frontObject, sideObject, faceNumbersGroup].forEach(obj => {
+                    if (obj) {
+                        obj.parent.remove(obj);
+                        if(obj.geometry) obj.geometry.dispose();
+                    }
+                });
+                structuralForm = topObject = frontObject = sideObject = faceNumbersGroup = null;
+            }
+            clearHighlights(); // Also clear highlight meshes
+
+            let geometry;
+            const size = 1.5; // Base size
+            if (['Sphere', 'Torus', 'Cone'].includes(name)) {
+                 if (name === 'Sphere') geometry = new THREE.SphereGeometry(size, 32, 16);
+                 if (name === 'Torus') geometry = new THREE.TorusGeometry(size * 0.8, size * 0.3, 16, 100);
+                 if (name === 'Cone') geometry = new THREE.ConeGeometry(size, size * 1.5, 32);
+            } else {
+                const simpleShapes = {
+                    'Tetrahedron': new THREE.TetrahedronGeometry(size), 'Cube (Hexahedron)': new THREE.BoxGeometry(size, size, size),
+                    'Octahedron': new THREE.OctahedronGeometry(size), 'Dodecahedron': new THREE.DodecahedronGeometry(size),
+                    'Icosahedron': new THREE.IcosahedronGeometry(size), 'Truncated Icosahedron (Soccer Ball)': new THREE.IcosahedronGeometry(size, 1),
+                    'Icosidodecahedron': new THREE.DodecahedronGeometry(size * 0.9, 1), 'Rhombicuboctahedron': new THREE.BoxGeometry(size, size, size, 2, 2, 2),
+                    'Truncated Cube': new THREE.BoxGeometry(size * 1.2, size * 1.2, size * 1.2),'Cuboctahedron': new THREE.OctahedronGeometry(size * 0.8, 1)
+                };
+                geometry = simpleShapes[name] || new THREE.BoxGeometry(size, size, size);
+            }
+
+            // Create 3D "Truth" object (Static Structural Form)
+            const spin = controls.spinSelect.value;
+            if (spin === 'Solid') structuralForm = new THREE.Mesh(geometry, mainMaterial);
+            else if (spin === 'Wireframe') structuralForm = new THREE.Mesh(geometry, wireframeMaterial);
+            scene3d.add(structuralForm);
+
+            // Add face numbers
+            if (geometry.attributes.position && spin !== 'Points') addFaceNumbersBuffer(structuralForm);
+
+            // Create 2D "Fact" objects
+            topObject = new THREE.Mesh(geometry, wireframeMaterial.clone());
+            frontObject = new THREE.Mesh(geometry, wireframeMaterial.clone());
+            sideObject = new THREE.Mesh(geometry, wireframeMaterial.clone());
+            scene2dTop.add(topObject);
+            scene2dFront.add(frontObject);
+            scene2dSide.add(sideObject);
+
+            updateFromControls(); // Apply all current control settings
+        }
+        
+        function updateFromControls() {
+            if (!structuralForm) return;
+
+            // --- Step 1: Payload Scaler (Size) ---
+            const scale = parseFloat(controls.scalerSlider.value);
+            controls.scalerValue.textContent = scale.toFixed(2);
+            structuralForm.scale.set(scale, scale, scale);
+
+            // --- Step 2: Dynamics ---
+            // Freq ID (Pulse)
+            pulseSpeed = parseFloat(controls.freqSelect.value);
+            // Spin ID (Material)
+            const spin = controls.spinSelect.value;
+            const currentMaterial = structuralForm.material;
+            if (spin === 'Solid' && currentMaterial !== mainMaterial) {
+                structuralForm.material = mainMaterial;
+            } else if (spin === 'Wireframe' && currentMaterial !== wireframeMaterial) {
+                structuralForm.material = wireframeMaterial;
+            }
+            // Update 2D "Fact" materials
+            [topObject, frontObject, sideObject].forEach(obj => {
+                obj.material = (spin === 'Solid') ? mainMaterial.clone() : wireframeMaterial.clone();
+            });
+
+
+            // --- Step 3: State & ID ---
+            // Form ID - Handled by createShape
+            // Amp ID (Opacity)
+            const opacity = parseFloat(controls.ampSlider.value);
+            controls.ampValue.textContent = opacity.toFixed(1);
+            mainMaterial.opacity = opacity;
+            wireframeMaterial.opacity = opacity;
+            if (highlightMaterial) highlightMaterial.opacity = opacity * 0.7;
+            
+            // Sync opacity to 2D clones and highlights
+            [topObject, frontObject, sideObject].forEach(obj => {
+                obj.material.opacity = opacity;
+            });
+            [highlightGroup3D, highlightTop, highlightFront, highlightSide].forEach(h => {
+                if (h) h.material.opacity = opacity * 0.7;
+            });
+
+
+            // --- Step 4: Quaternion (Rotation) ---
+            // Convert 8-bit int (0-255) to float (-1.0 to 1.0)
+            const w = (parseFloat(controls.qW.value) / 127.5) - 1.0;
+            const x = (parseFloat(controls.qX.value) / 127.5) - 1.0;
+            const y = (parseFloat(controls.qY.value) / 127.5) - 1.0;
+            const z = (parseFloat(controls.qZ.value) / 127.5) - 1.0;
+
+            const packetQuaternion = new THREE.Quaternion(x, y, z, w);
+            packetQuaternion.normalize();
+            
+            // Apply rotation to internal pointer
+            internalPointer.setRotationFromQuaternion(packetQuaternion);
+            // Apply rotation to quat sphere pointer
+            quatPointer.setRotationFromQuaternion(packetQuaternion);
+        }
+
+        function resetRotation() {
+            // Reset sliders
+            controls.qW.value = 255;
+            controls.qX.value = 0;
+            controls.qY.value = 0;
+            controls.qZ.value = 0;
+            updateFromControls();
+
+            // NEW: Reset the 3D camera view
+            if (controls3d) {
+                controls3d.reset();
+            }
+        }
+
+        // --- Analysis Functions (Step 4/5) ---
+
+        function createNumberSprite(text) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 64; canvas.height = 64;
+            context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            context.beginPath(); context.arc(32, 32, 32, 0, 2 * Math.PI); context.fill();
+            context.fillStyle = '#111827';
+            context.font = 'bold 32px Inter, sans-serif';
+            context.textAlign = 'center'; context.textBaseline = 'middle';
+            context.fillText(text, 32, 32);
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(0.3, 0.3, 1);
+            return sprite;
+        }
+
+        function addFaceNumbersBuffer(object) {
+            faceNumbersGroup = new THREE.Group();
+            const pos = object.geometry.attributes.position;
+            // Check if geometry is indexed or non-indexed
+            const faceCount = (object.geometry.index ? object.geometry.index.count : pos.count) / 3;
+            
+            for (let i = 0; i < faceCount; i++) {
+                let vA, vB, vC;
+                if (object.geometry.index) {
+                    const iA = object.geometry.index.getX(i * 3);
+                    const iB = object.geometry.index.getX(i * 3 + 1);
+                    const iC = object.geometry.index.getX(i * 3 + 2);
+                    vA = new THREE.Vector3().fromBufferAttribute(pos, iA);
+                    vB = new THREE.Vector3().fromBufferAttribute(pos, iB);
+                    vC = new THREE.Vector3().fromBufferAttribute(pos, iC);
+                } else {
+                    vA = new THREE.Vector3().fromBufferAttribute(pos, i * 3);
+                    vB = new THREE.Vector3().fromBufferAttribute(pos, i * 3 + 1);
+                    vC = new THREE.Vector3().fromBufferAttribute(pos, i * 3 + 2);
+                }
+                
+                const center = new THREE.Vector3().add(vA).add(vB).add(vC).divideScalar(3);
+                
+                // Calculate normal
+                const tempB = new THREE.Vector3().copy(vB);
+                const tempC = new THREE.Vector3().copy(vC);
+                const normal = new THREE.Vector3().crossVectors(tempB.sub(vA), tempC.sub(vA)).normalize();
+
+                const sprite = createNumberSprite(i + 1);
+                sprite.position.copy(center).add(normal.multiplyScalar(0.1));
+                faceNumbersGroup.add(sprite);
+            }
+            scene3d.add(faceNumbersGroup);
+        }
+
+        function highlightFace(intersect) {
+            clearHighlights(); // Clear previous highlights
+            const face = intersect.face;
+            const geometry = intersect.object.geometry;
+            
+            // Get vertex positions for the clicked face
+            const vA = new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, face.a);
+            const vB = new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, face.b);
+            const vC = new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, face.c);
+
+            // Create a new geometry for this single face
+            const highlightGeo = new THREE.BufferGeometry();
+            highlightGeo.setAttribute('position', new THREE.Float32BufferAttribute([vA.x, vA.y, vA.z, vB.x, vB.y, vB.z, vC.x, C.y, vC.z], 3));
+            
+            // Set opacity based on current slider
+            highlightMaterial.opacity = parseFloat(controls.ampSlider.value) * 0.7;
+
+            // Create and add highlight meshes for all 4 views
+            highlightGroup3D = new THREE.Mesh(highlightGeo, highlightMaterial);
+            scene3d.add(highlightGroup3D);
+
+            highlightTop = new THREE.Mesh(highlightGeo, highlightMaterial.clone());
+            scene2dTop.add(highlightTop);
+
+            highlightFront = new THREE.Mesh(highlightGeo, highlightMaterial.clone());
+            scene2dFront.add(highlightFront);
+
+            highlightSide = new THREE.Mesh(highlightGeo, highlightMaterial.clone());
+            scene2dSide.add(highlightSide);
+        }
+
+        function clearHighlights() {
+            // Remove all highlight meshes from their scenes and dispose geometry
+            [highlightGroup3D, highlightTop, highlightFront, highlightSide].forEach(h => {
+                if (h) {
+                    if (h.parent) h.parent.remove(h);
+                    if (h.geometry) h.geometry.dispose();
+                }
+            });
+            highlightGroup3D = highlightTop = highlightFront = highlightSide = null;
+        }
+
+        function onCanvasClick(event) { // Step 5: Analyze
+            if (structuralForm && structuralForm.material === wireframeMaterial) {
+                 // Don't raycast against wireframe, it's finicky
+                 return;
+            }
+            
+            const rect = containers['3d'].getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera3d);
+            const intersects = raycaster.intersectObject(structuralForm);
+            
+            if (intersects.length > 0) {
+                highlightFace(intersects[0]);
+
+                // --- NEW DYNAMIC CAMERA LOGIC ---
+                const face = intersects[0].face;
+                const object = intersects[0].object;
+
+                // Get the face normal in world space
+                const normal = face.normal.clone();
+                normal.transformDirection(object.matrixWorld); 
+                normal.normalize();
+
+                // Calculate side vector (90 deg offset)
+                let side = new THREE.Vector3().crossVectors(normal, upVector);
+                if (side.lengthSq() < 0.001) { 
+                    side.crossVectors(normal, new THREE.Vector3(1, 0, 0)); 
+                }
+                side.normalize();
+
+                const camDist = 10; 
+
+                // 1. "Face-On" Camera
+                camera2dTop.position.copy(normal).multiplyScalar(camDist);
+                camera2dTop.lookAt(0, 0, 0);
+
+                // 2. "Inverse" Camera
+                camera2dFront.position.copy(normal).multiplyScalar(-camDist);
+                camera2dFront.lookAt(0, 0, 0);
+
+                // 3. "Side" Camera
+                camera2dSide.position.copy(side).multiplyScalar(camDist);
+                camera2dSide.lookAt(0, 0, 0);
+
+            } else {
+                clearHighlights();
+            }
+        }
+        
+        // --- Render Loop ---
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = clock.getDelta();
+            
+            controls3d.update(); 
+
+            // --- Apply Packet Dynamics ---
+            if (pulseSpeed > 0 && mainMaterial) {
+                const pulse = (Math.sin(clock.elapsedTime * pulseSpeed * 2) + 1) / 2; // 0 to 1
+                mainMaterial.emissive.setHex(0x4f46e5);
+                mainMaterial.emissiveIntensity = pulse * 0.5;
+            } else if (mainMaterial) {
+                mainMaterial.emissive.setHex(0x000000);
+            }
+
+            // Sync scale
+            if (structuralForm) {
+                const { scale } = structuralForm;
+                // Apply scale to all objects that should scale with the main form
+                [structuralForm, topObject, frontObject, sideObject, faceNumbersGroup].forEach(obj => {
+                    if (obj) obj.scale.copy(scale);
+                });
+                // Apply scale to highlight meshes
+                [highlightGroup3D, highlightTop, highlightFront, highlightSide].forEach(h => {
+                    if (h) h.scale.copy(scale);
+                });
+                // Exception: internalPointer's scale should be independent
+                internalPointer.scale.set(1,1,1);
+            }
+            
+            // Render all scenes
+            renderer3d.render(scene3d, camera3d);
+            renderer2dTop.render(scene2dTop, camera2dTop);
+            renderer2dFront.render(scene2dFront, camera2dFront);
+            renderer2dSide.render(scene2dSide, camera2dSide);
+            rendererQuat.render(sceneQuat, cameraQuat); // NEW
+        }
+        
+        function onWindowResize() {
+            Object.keys(containers).forEach(key => {
+                const container = containers[key];
+                if (!container) return;
+                
+                // Ensure container has valid dimensions
+                if (container.clientWidth === 0 || container.clientHeight === 0) {
+                    return; 
+                }
+                
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                if (key === '3d') {
+                    camera3d.aspect = width / height;
+                    camera3d.updateProjectionMatrix();
+                    renderer3d.setSize(width, height);
+                } else if (key === 'quat') {
+                    cameraQuat.aspect = width / height;
+                    cameraQuat.updateProjectionMatrix();
+                    rendererQuat.setSize(width, height);
+                } else {
+                    let renderer, camera;
+                    if (key === '2dTop') { renderer = renderer2dTop; camera = camera2dTop; }
+                    if (key === '2dFront') { renderer = renderer2dFront; camera = camera2dFront; }
+                    if (key === '2dSide') { renderer = renderer2dSide; camera = camera2dSide; }
+                    
+                    if (renderer && camera) {
+                        renderer.setSize(width, height);
+                        const aspect = width / height; const size = 3;
+                        camera.left = -size * aspect; camera.right = size * aspect;
+                        camera.top = size; camera.bottom = -size;
+                        camera.updateProjectionMatrix();
+                    }
+                }
+            });
+        }
+        
+        // --- Bug fix in highlightFace ---
+        // Need to redefine highlightFace to fix the 'C' is not defined error
+        function highlightFace(intersect) {
+            clearHighlights(); // Clear previous highlights
+            const face = intersect.face;
+            const geometry = intersect.object.geometry;
+            
+            // Get vertex positions for the clicked face
+            const vA = new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, face.a);
+            const vB = new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, face.b);
+            const vC = new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, face.c);
+
+            // Create a new geometry for this single face
+            const highlightGeo = new THREE.BufferGeometry();
+            // *** THIS IS THE FIX: vC.x, vC.y, vC.z (was C.y) ***
+            highlightGeo.setAttribute('position', new THREE.Float32BufferAttribute([vA.x, vA.y, vA.z, vB.x, vB.y, vB.z, vC.x, vC.y, vC.z], 3));
+            
+            // Set opacity based on current slider
+            highlightMaterial.opacity = parseFloat(controls.ampSlider.value) * 0.7;
+
+            // Create and add highlight meshes for all 4 views
+            highlightGroup3D = new THREE.Mesh(highlightGeo, highlightMaterial);
+            scene3d.add(highlightGroup3D);
+
+            highlightTop = new THREE.Mesh(highlightGeo.clone(), highlightMaterial.clone());
+            scene2dTop.add(highlightTop);
+
+            highlightFront = new THREE.Mesh(highlightGeo.clone(), highlightMaterial.clone());
+            scene2dFront.add(highlightFront);
+
+            highlightSide = new THREE.Mesh(highlightGeo.clone(), highlightMaterial.clone());
+            scene2dSide.add(highlightSide);
+        }
+        
+        init();
+    </script>
+</body>
+</html>
