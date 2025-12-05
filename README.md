@@ -21,8 +21,8 @@ shd-ccp-website/
 │   └── auth.js               # Firebase Authentication & Logic module
 │
 ├── tutorials/                # DIRECTORY: Contains individual tutorial pages
-│   ├── 01-first-packet.html
-│   ├── 02-network-setup.html
+│   ├── 01-SHD-CCP 2D Data Encoding -Tutorial Version-
+│   ├── 02-SHD-CCP 3D Data Encoding -Tutorial Version-
 │   ├── 03-packet-breakdown.html
 │   ├── 04-logical-operators.html
 │   ├── 05-understanding-qpos.html
