@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHD-CCP Logic Builder | Schism Labs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #050505; color: #e5e7eb; user-select: none; overflow: hidden; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Glass UI */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Sidebar Transitions */
+        .sidebar-panel {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .sidebar-content {
+            width: 20rem; 
+            transition: opacity 0.2s;
+        }
+        .sidebar-collapsed .sidebar-content {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Inputs */
+        input[type="text"], input[type="number"] {
+            background: #111827;
+            border: 1px solid #374151;
+            color: #10b981;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            padding: 4px 8px;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+        input:focus { outline: none; border-color: #34d399; }
+        
+        .data-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        /* Builder Mode Styles */
+        .node-card {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .node-card:hover {
+            background: rgba(52, 211, 153, 0.1);
+            border-left: 3px solid #34d399;
+        }
+        .node-card.active {
+            background: rgba(52, 211, 153, 0.2);
+            border-left: 3px solid #34d399;
+        }
+
+        /* Workflow Mode Styles */
+        #workflow-canvas {
+            background-color: #080808;
+            background-image: 
+                radial-gradient(rgba(40, 40, 40, 0.5) 1px, transparent 1px);
+            background-size: 20px 20px;
+            cursor: grab;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+        #workflow-canvas:active { cursor: grabbing; }
+
+        #canvas-content {
+            transform-origin: 0 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .workflow-node {
+            position: absolute;
+            width: 240px;
+            background: rgba(17, 24, 39, 0.95);
+            border: 1px solid #374151;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.8);
+            z-index: 10;
+            cursor: default;
+            transition: border-color 0.1s;
+        }
+        .workflow-node.selected { border-color: #34d399; box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.3); }
+        .workflow-node.firing { border-color: #fff; box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
+        
+        .workflow-node.logic-gate .workflow-node-header { border-bottom-color: #f59e0b; }
+        .workflow-node.io-node .workflow-node-header { border-bottom-color: #3b82f6; }
+
+        .workflow-node-header {
+            cursor: move;
+            padding: 8px 12px;
+            border-bottom: 1px solid #374151;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* Node Ports */
+        .port {
+            width: 12px;
+            height: 12px;
+            background: #4b5563;
+            border: 2px solid #9ca3af;
+            border-radius: 50%;
+            position: absolute;
+            cursor: crosshair;
+            transition: all 0.2s;
+            z-index: 20;
+        }
+        .port:hover { background: #34d399; border-color: #fff; transform: scale(1.2); }
+        .port.input { top: 50%; left: -6px; transform: translateY(-50%); }
+        .port.output { top: 50%; right: -6px; transform: translateY(-50%); }
+
+        /* Logic State Indicators */
+        .input-indicator {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4b5563;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            margin-top: 10px; /* Offset below header */
+        }
+        .input-indicator.active { background: #34d399; box-shadow: 0 0 4px #34d399; }
+
+        .connection-line {
+            fill: none;
+            stroke: #6b7280;
+            stroke-width: 2px;
+            pointer-events: none;
+            transition: stroke 0.3s;
+        }
+        .connection-line.active { stroke: #34d399; stroke-width: 3px; filter: drop-shadow(0 0 4px #34d399); }
+
+        .signal-particle {
+            fill: #34d399;
+            filter: drop-shadow(0 0 6px #34d399);
+            transition: r 0.2s, fill 0.2s;
+        }
+        .signal-particle.negative { fill: #ef4444; filter: drop-shadow(0 0 6px #ef4444); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        
+        /* Tier Badges */
+        .tier-badge { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; }
+        .tier-1 { background: #172554; color: #bfdbfe; border: 1px solid #1e40af; } 
+        .tier-2 { background: #064e3b; color: #a7f3d0; border: 1px solid #059669; } 
+        .tier-3 { background: #451a03; color: #fef08a; border: 1px solid #d97706; } 
+        .tier-4 { background: #4c1d95; color: #e9d5ff; border: 1px solid #7c3aed; } 
+        .tier-5 { background: #831843; color: #fbcfe8; border: 1px solid #db2777; } 
+        .logic-badge { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; background: #262626; color: #d4d4d4; border: 1px solid #525252; }
+
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #34d399;
+            cursor: pointer;
+            margin-top: -4px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #374151;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="h-16 border-b border-gray-800 bg-gray-900 flex items-center justify-between px-4 shrink-0 z-50">
+        <!-- Left Controls -->
+        <div class="flex items-center gap-4">
+            <button onclick="toggleSidebar('left')" class="text-gray-400 hover:text-white transition-colors p-2 rounded hover:bg-gray-800" title="Toggle Toolbox">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-green-500 rounded-sm flex items-center justify-center text-black font-bold mono">S</div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-tight">SHD-CCP Logic Builder</h1>
+                    <p class="text-xs text-gray-400 mono">Schism Labs // v3.2 (Stable)</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- View Toggle -->
+        <div class="bg-gray-800 p-1 rounded-lg flex gap-1">
+            <button onclick="switchView('builder')" id="btn-builder" class="px-4 py-1.5 rounded text-xs font-bold bg-gray-700 text-white transition-colors">STACK BUILDER</button>
+            <button onclick="switchView('workflow')" id="btn-workflow" class="px-4 py-1.5 rounded text-xs font-bold text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                WORKFLOW SIM
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+            </button>
+        </div>
+
+        <!-- Right Controls -->
+        <div class="flex items-center gap-4">
+            <div class="flex gap-4 text-xs font-mono text-gray-400 hidden md:flex">
+                <div class="flex items-center gap-2">
+                    <span id="sys-status-dot" class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    ONLINE
+                </div>
+                <div>ID: <span id="packet-id" class="text-green-400">WAITING...</span></div>
+            </div>
+            <button onclick="toggleSidebar('right')" class="text-gray-400 hover:text-white transition-colors p-2 rounded hover:bg-gray-800" title="Toggle Inspector">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Dynamic Left Sidebar -->
+        <aside id="left-sidebar" class="w-80 border-r border-gray-800 bg-gray-950/90 flex flex-col overflow-hidden z-40 relative shadow-xl sidebar-panel">
+            <div class="sidebar-content h-full flex flex-col">
+                <div class="p-4 border-b border-gray-800 bg-gray-900 flex justify-between items-center">
+                    <div>
+                        <h2 id="toolbox-title" class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1">Structural Forms</h2>
+                        <p id="toolbox-desc" class="text-xs text-gray-500">Geometry for Packet ID.</p>
+                    </div>
+                </div>
+                <div id="toolbox-builder" class="flex-1 overflow-y-auto p-2 space-y-4"></div>
+                <div id="toolbox-workflow" class="flex-1 overflow-y-auto p-2 space-y-4 hidden"></div>
+            </div>
+        </aside>
+
+        <!-- VIEW CONTAINER -->
+        <div class="flex-1 relative bg-black transition-all overflow-hidden">
+            
+            <!-- VIEW 1: Builder (Linear) -->
+            <main id="view-builder" class="absolute inset-0 z-30 flex flex-col transition-opacity duration-300 bg-black">
+                <div id="canvas-container" class="absolute inset-0 z-0"></div>
+                <div class="absolute inset-0 z-10 flex flex-col pointer-events-none">
+                    <div class="p-6 pointer-events-auto">
+                        <div class="glass-panel p-4 rounded-lg max-w-2xl">
+                            <h2 class="text-green-400 font-bold mb-2">Linear Logic Stack</h2>
+                            <p class="text-sm text-gray-300 mb-2">Active construction mode. Define sequence of geometric constraints.</p>
+                        </div>
+                    </div>
+                    <div class="mt-auto p-6 pointer-events-auto overflow-x-auto pb-8">
+                        <div class="flex items-end gap-4" id="logic-chain"></div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- VIEW 2: Workflow (Canvas) -->
+            <main id="view-workflow" class="absolute inset-0 z-20 opacity-0 pointer-events-none transition-opacity duration-300 bg-gray-900">
+                <div id="workflow-canvas" class="w-full h-full">
+                    <div id="canvas-content" class="border-2 border-dashed border-gray-800/30">
+                        <svg id="connections-layer" class="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"></svg>
+                        <div id="nodes-layer" class="absolute inset-0 w-full h-full z-10"></div>
+                    </div>
+                </div>
+                
+                <!-- Workflow Controls -->
+                <div class="absolute top-4 right-4 z-50 flex flex-col gap-2 pointer-events-auto">
+                    <div class="glass-panel p-4 rounded-lg w-72">
+                        <h3 class="text-white font-bold text-sm mb-3 border-b border-gray-700 pb-2 flex justify-between">
+                            <span>Simulation Engine</span>
+                            <span id="global-synch-dot" class="w-2 h-2 rounded-full bg-gray-600" title="Locality Synch Pulse"></span>
+                        </h3>
+                        
+                        <!-- Logic Controls -->
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] text-gray-400 uppercase font-bold">Logic Flow</span>
+                                <span id="logic-timer-val" class="text-[10px] text-green-400 font-mono">STEP: 0</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="simStep()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-1.5 rounded border border-gray-600" title="Advance one step">STEP</button>
+                                <button onclick="simPlay()" id="btn-play" class="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs font-bold py-1.5 rounded shadow-lg flex items-center justify-center gap-1">
+                                    <span>▶</span> PLAY
+                                </button>
+                                <button onclick="simReset()" class="px-3 bg-red-900/50 hover:bg-red-800 text-red-200 text-xs font-bold rounded border border-red-800">↻</button>
+                            </div>
+                        </div>
+
+                        <!-- Coherency Tuner -->
+                        <div class="mb-2">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] text-gray-400 uppercase font-bold">Packet Coherency</span>
+                                <span id="coherency-val" class="text-[10px] text-blue-400 font-mono">100%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="100" class="w-full" oninput="updateCoherency(this.value)">
+                        </div>
+
+                        <!-- Zoom Controls -->
+                        <div class="absolute bottom-[-40px] right-0 flex gap-1">
+                            <button onclick="zoomCanvas(0.1)" class="glass-panel w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:text-white hover:bg-gray-800">+</button>
+                            <button onclick="zoomCanvas(-0.1)" class="glass-panel w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:text-white hover:bg-gray-800">-</button>
+                            <button onclick="resetCanvasView()" class="glass-panel w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:text-white hover:bg-gray-800 text-[10px]">1:1</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+        </div>
+
+        <!-- Dynamic Right Sidebar (Inspector) -->
+        <aside id="right-sidebar" class="w-96 border-l border-gray-800 bg-gray-900 p-6 flex flex-col overflow-y-auto z-40 relative shadow-xl sidebar-panel">
+            <div class="sidebar-content h-full">
+                <div id="inspector-content"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Node Templates -->
+    <template id="node-template">
+        <div class="glass-panel p-4 rounded-lg w-64 shrink-0 relative group cursor-pointer transition-transform hover:-translate-y-1 border-l-4 logic-node">
+            <div class="absolute -top-3 -right-3 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20 close-btn" title="Remove Node">×</div>
+            <div class="flex justify-between items-start mb-2">
+                <span class="tier-badge">TIER ?</span>
+                <span class="text-xs font-mono text-gray-500 id-badge">ID: ?</span>
+            </div>
+            <h4 class="font-bold text-white text-sm mb-1 node-title">Form Name</h4>
+            <p class="text-xs text-gray-400 line-clamp-2 node-desc">Description.</p>
+            <div class="mt-3 pt-3 border-t border-gray-700/50 flex justify-between items-center">
+                <span class="text-[10px] uppercase text-green-500 font-mono status-text">ACTIVE</span>
+                <div class="w-2 h-2 rounded-full bg-green-500 status-dot"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // --- CONSTANTS ---
+        const FORMS = [
+            { id: 0, tier: 1, type: 'form', name: "Tetrahedron", concept: "Atomic Truth", desc: "Indivisible axiom.", color: 0x3b82f6 },
+            { id: 1, tier: 1, type: 'form', name: "Cube", concept: "Structured Data", desc: "Rigid schemas.", color: 0x3b82f6 },
+            { id: 2, tier: 1, type: 'form', name: "Octahedron", concept: "Network Hub", desc: "Balanced relations.", color: 0x3b82f6 },
+            { id: 3, tier: 1, type: 'form', name: "Icosahedron", concept: "Monolithic", desc: "Complex entities.", color: 0x3b82f6 },
+            { id: 4, tier: 1, type: 'form', name: "Dodecahedron", concept: "High Domain", desc: "Knowledge container.", color: 0x3b82f6 },
+            { id: 5, tier: 2, type: 'form', name: "Trunc. Tetrahedron", concept: "Conditional", desc: "Truth with caveats.", color: 0x10b981 },
+            { id: 6, tier: 2, type: 'form', name: "Cuboctahedron", concept: "Equilibrium", desc: "System balance.", color: 0x10b981 },
+            { id: 7, tier: 2, type: 'form', name: "Trunc. Icosahedron", concept: "Data Packet", desc: "Subject-Predicate.", color: 0x10b981 },
+            { id: 8, tier: 3, type: 'form', name: "Rhombicuboctahedron", concept: "Parameters", desc: "Laws + Data.", color: 0xeab308 },
+            { id: 9, tier: 3, type: 'form', name: "Icosidodecahedron", concept: "Narrative", desc: "Theory + Evidence.", color: 0xeab308 },
+            { id: 10, tier: 3, type: 'form', name: "Trunc. Cuboctahedron", concept: "Max Density", desc: "Complex systems.", color: 0xeab308 },
+            { id: 11, tier: 4, type: 'form', name: "Snub Cube", concept: "Causality", desc: "Cause -> Effect.", color: 0xa855f7 },
+            { id: 12, tier: 4, type: 'form', name: "Snub Dodecahedron", concept: "Ethical Stance", desc: "Nuanced Argument.", color: 0xa855f7 },
+            { id: 13, tier: 5, type: 'form', name: "Cosmohedron", concept: "Universal Context", desc: "Wavefunction.", color: 0xec4899 }
+        ];
+
+        const LOGIC_OPS = [
+            { id: 100, category: 'IO', type: 'logic', name: "START", concept: "Entry", desc: "Spawns SHD-CCP packets.", color: 0x3b82f6 },
+            { id: 101, category: 'IO', type: 'logic', name: "END", concept: "Exit", desc: "Consumes packets.", color: 0xef4444 },
+            { id: 200, category: 'Gate', type: 'logic', name: "AND", concept: "Intersect", desc: "Wait for all inputs. Passes if synched.", color: 0xf59e0b },
+            { id: 201, category: 'Gate', type: 'logic', name: "OR", concept: "Union", desc: "Passes if any input active.", color: 0xf59e0b },
+            { id: 202, category: 'Gate', type: 'logic', name: "XOR", concept: "Exclusion", desc: "Passes if inputs strictly differ.", color: 0xf59e0b },
+            { id: 203, category: 'Gate', type: 'logic', name: "NAND", concept: "Not And", desc: "Inverts AND logic. Flips parity.", color: 0xf59e0b },
+            { id: 204, category: 'Gate', type: 'logic', name: "NOR", concept: "Not Or", desc: "Inverts OR logic. Flips parity.", color: 0xf59e0b },
+            { id: 205, category: 'Gate', type: 'logic', name: "NOT", concept: "Inverter", desc: "Flips Packet Parity.", color: 0xf59e0b },
+            { id: 300, category: 'Flow', type: 'logic', name: "SPLIT", concept: "Branching", desc: "Clones packet to all outputs.", color: 0x8b5cf6 },
+            { id: 301, category: 'Flow', type: 'logic', name: "MERGE", concept: "Join", desc: "Linear stream merge.", color: 0x8b5cf6 },
+            { id: 302, category: 'Flow', type: 'logic', name: "BUFFER", concept: "Delay", desc: "Holds packet for 1 tick.", color: 0x8b5cf6 }
+        ];
+
+        // --- APP STATE ---
+        let appState = {
+            mode: 'builder', 
+            chain: [],       
+            workflowNodes: [], 
+            connections: [],   
+            activeNodeId: null,
+            nextId: 1,
+            sidebars: { left: true, right: true },
+            view: { scale: 1, x: 0, y: 0 },
+            sim: {
+                running: false,
+                stepCount: 0,
+                coherency: 100,
+                packets: [],
+                lastTick: 0
+            }
+        };
+
+        // --- 3D SETUP ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050505, 0.15); 
+        const container = document.getElementById('canvas-container');
+        let width = window.innerWidth - 320 - 384; if (width < 100) width = window.innerWidth;
+        const camera = new THREE.PerspectiveCamera(45, width / window.innerHeight, 0.1, 1000);
+        camera.position.set(4, 3, 5); camera.lookAt(0, 0, 0);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(width, window.innerHeight);
+        container.appendChild(renderer.domElement);
+        scene.add(new THREE.AmbientLight(0x404040, 3));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2); dirLight.position.set(5, 5, 5); scene.add(dirLight);
+        scene.add(new THREE.PointLight(0x34d399, 1, 100));
+        let currentMesh = null, wireframeMesh = null;
+        let ghostMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: 0x333333, wireframe: true, transparent: true, opacity: 0.1 }));
+        scene.add(ghostMesh);
+
+        let meshRotationSpeed = 0.005; 
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            if (currentMesh) { 
+                currentMesh.rotation.y += meshRotationSpeed; 
+                currentMesh.rotation.x += 0.002; 
+                if(wireframeMesh) wireframeMesh.rotation.copy(currentMesh.rotation); 
+            }
+            if (ghostMesh) { ghostMesh.rotation.y -= 0.002; ghostMesh.rotation.x -= 0.001; }
+            renderer.render(scene, camera);
+        }
+        animate3D();
+
+        function update3DView(formId) {
+            if (currentMesh) { scene.remove(currentMesh); currentMesh = null; }
+            if (wireframeMesh) { scene.remove(wireframeMesh); wireframeMesh = null; }
+            if (formId === null || formId === undefined || formId >= 100) { ghostMesh.visible = true; return; }
+            ghostMesh.visible = false;
+            let geometry;
+            const data = FORMS.find(f => f.id === formId);
+            switch(formId) {
+                case 0: geometry = new THREE.TetrahedronGeometry(1.5); break;
+                case 1: geometry = new THREE.BoxGeometry(2, 2, 2); break;
+                case 2: geometry = new THREE.OctahedronGeometry(1.5); break;
+                case 3: geometry = new THREE.IcosahedronGeometry(1.5); break;
+                case 4: geometry = new THREE.DodecahedronGeometry(1.5); break;
+                case 5: geometry = new THREE.TetrahedronGeometry(1.5, 1); break;
+                case 6: geometry = new THREE.OctahedronGeometry(1.5, 1); break;
+                case 7: geometry = new THREE.IcosahedronGeometry(1.5, 1); break;
+                case 8: geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5, 2, 2, 2); break;
+                case 11: geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5, 2, 2, 2); break;
+                case 12: geometry = new THREE.DodecahedronGeometry(1.5, 2); break;
+                case 13: geometry = new THREE.CylinderGeometry(1, 1, 2, 10); break;
+                default: geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5); 
+            }
+            const material = new THREE.MeshPhongMaterial({ color: data.color, flatShading: true, transparent: true, opacity: 0.85, shininess: 80 });
+            currentMesh = new THREE.Mesh(geometry, material);
+            const wireframeGeo = new THREE.WireframeGeometry(geometry);
+            const wireframeMat = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.2, transparent: true });
+            wireframeMesh = new THREE.LineSegments(wireframeGeo, wireframeMat);
+            scene.add(currentMesh); scene.add(wireframeMesh);
+        }
+
+        // --- CORE FUNCTIONS ---
+
+        function generateDefaultPacketData(formId) {
+            return {
+                quaternion: { x: Math.random().toFixed(4), y: Math.random().toFixed(4), z: Math.random().toFixed(4), w: Math.random().toFixed(4) },
+                frequency: (Math.random() * 1000).toFixed(2) + "Hz",
+                parity: true, 
+                scaler: "NULL",
+                customLogic: []
+            };
+        }
+
+        function addToStack(id) {
+            const form = FORMS.find(f => f.id === id);
+            const node = { 
+                ...form, 
+                uuid: appState.nextId++, 
+                packetData: generateDefaultPacketData(id)
+            };
+            appState.chain.push(node);
+            renderStack();
+            selectStackNode(node.uuid);
+        }
+
+        function addToWorkflow(id, type, x=100, y=100) {
+            const data = (type === 'form' ? FORMS : LOGIC_OPS).find(f => f.id === id);
+            const node = { 
+                ...data, 
+                uuid: appState.nextId++, 
+                x, y, type,
+                packetData: type === 'form' ? generateDefaultPacketData(id) : null,
+                inputState: {}
+            };
+            appState.workflowNodes.push(node);
+            renderWorkflowNodes();
+        }
+
+        // --- STACK FUNCTIONS ---
+        function renderStack() {
+            const cont = document.getElementById('logic-chain');
+            cont.innerHTML = '';
+            const tpl = document.getElementById('node-template');
+            appState.chain.forEach((n, i) => {
+                const clone = tpl.content.cloneNode(true);
+                const el = clone.querySelector('.glass-panel');
+                el.querySelector('.node-title').innerText = n.name;
+                el.querySelector('.node-desc').innerText = n.concept;
+                el.querySelector('.id-badge').innerText = `ID: ${n.id}`;
+                el.querySelector('.tier-badge').classList.add(`tier-${n.tier}`);
+                el.querySelector('.tier-badge').innerText = `TIER ${n.tier}`;
+                if(n.uuid === appState.activeNodeId) {
+                    el.classList.add('active', 'border-green-500');
+                    el.querySelector('.status-dot').classList.add('animate-pulse');
+                } else {
+                    el.querySelector('.status-text').innerText = "LINKED";
+                    el.querySelector('.status-dot').classList.add('bg-gray-600');
+                }
+                el.onclick = () => selectStackNode(n.uuid);
+                el.querySelector('.close-btn').onclick = (e) => { e.stopPropagation(); appState.chain.splice(i, 1); renderStack(); };
+                if (i>0) {
+                    const l = document.createElement('div'); l.className = "h-0.5 w-4 bg-gray-600 self-center"; cont.appendChild(l);
+                }
+                cont.appendChild(el);
+            });
+            document.getElementById('packet-id').innerText = appState.chain.length ? "0x" + appState.chain.map(n=>n.id.toString(16)).join('').toUpperCase() : "NULL";
+        }
+
+        function selectStackNode(uuid) {
+            appState.activeNodeId = uuid;
+            renderStack();
+            const node = appState.chain.find(n => n.uuid === uuid);
+            updateInspector(node);
+        }
+
+        // --- SYNC FUNCTIONALITY ---
+        function syncChainToWorkflow() {
+            const chainUuids = appState.chain.map(n => n.uuid);
+            let lastNode = appState.workflowNodes.find(n => n.name === 'START');
+            if (!lastNode) {
+                lastNode = { ...LOGIC_OPS[0], uuid: appState.nextId++, x: 50, y: 300, type: 'logic', inputState: {} };
+                appState.workflowNodes.push(lastNode);
+            }
+
+            let x = lastNode.x + 300;
+            let y = lastNode.y;
+
+            appState.chain.forEach((n, i) => {
+                let wn = appState.workflowNodes.find(wn => wn.uuid === n.uuid);
+                if (!wn) {
+                    wn = { ...n, x, y: y + (i%2)*20, type: 'form', inputState: {} }; 
+                    appState.workflowNodes.push(wn);
+                    if (lastNode) {
+                        appState.connections.push({from: lastNode.uuid, to: wn.uuid});
+                    }
+                }
+                x = wn.x + 300;
+                y = wn.y;
+                lastNode = wn;
+            });
+            renderWorkflowNodes();
+            renderConnections();
+        }
+
+        // --- INSPECTOR ---
+        function updateInspector(node) {
+            const div = document.getElementById('inspector-content');
+            if(!node) { 
+                update3DView(null); 
+                div.innerHTML = `<div class="text-center mt-20"><div class="text-6xl text-gray-800">Ø</div><div class="text-gray-500 text-sm mt-4">Select Node</div></div>`; 
+                return; 
+            }
+
+            if(node.type === 'form') {
+                update3DView(node.id);
+                meshRotationSpeed = node.packetData.parity ? 0.005 : -0.005; 
+            } else {
+                update3DView(null);
+            }
+
+            let html = `
+                <div class="mb-6">
+                    <span class="tier-badge ${node.type==='form'?'tier-'+node.tier:'logic-badge'}">${node.type==='form'?'TIER '+node.tier:'LOGIC'}</span>
+                    <h2 class="text-3xl font-bold text-white mt-2">${node.name}</h2>
+                    <div class="text-green-500 font-mono text-sm mb-1">${node.type==='form'?'ID: '+node.id:'OP'}</div>
+                    <div class="text-xs text-gray-500 font-mono">UUID: ${node.uuid}</div>
+                </div>`;
+
+            if (node.type === 'form') {
+                const pd = node.packetData;
+                html += `
+                <div class="bg-gray-900 border border-gray-700 rounded p-4 mb-4">
+                    <h3 class="text-xs font-bold text-green-400 uppercase mb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> SHD-CCP Packet Data
+                    </h3>
+                    <div class="mb-3">
+                        <label class="data-label">Structural Form ID</label>
+                        <input type="text" value="${node.id} (${node.name})" disabled class="opacity-50 cursor-not-allowed">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                            <label class="data-label">Frequency ID</label>
+                            <input type="text" value="${pd.frequency}" onchange="updateNodeData(${node.uuid}, 'frequency', this.value)">
+                        </div>
+                        <div>
+                            <label class="data-label">Parity (Polarity)</label>
+                            <button onclick="toggleParity(${node.uuid})" class="w-full h-[26px] rounded text-xs font-bold transition-colors ${pd.parity ? 'bg-blue-900 text-blue-200 border border-blue-700' : 'bg-red-900 text-red-200 border border-red-700'}">
+                                ${pd.parity ? 'POSITIVE (+)' : 'NEGATIVE (-)'}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="data-label">Payload Scaler</label>
+                        <input type="text" value="NULL" disabled class="text-gray-500 border-gray-800">
+                    </div>
+                    <div class="mb-3">
+                        <label class="data-label">Quaternion Data (x, y, z, w)</label>
+                        <div class="grid grid-cols-4 gap-1">
+                            <input type="number" step="0.01" value="${pd.quaternion.x}" onchange="updateQuaternion(${node.uuid}, 'x', this.value)">
+                            <input type="number" step="0.01" value="${pd.quaternion.y}" onchange="updateQuaternion(${node.uuid}, 'y', this.value)">
+                            <input type="number" step="0.01" value="${pd.quaternion.z}" onchange="updateQuaternion(${node.uuid}, 'z', this.value)">
+                            <input type="number" step="0.01" value="${pd.quaternion.w}" onchange="updateQuaternion(${node.uuid}, 'w', this.value)">
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-900 border border-gray-700 rounded p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-bold text-blue-400 uppercase">Custom Functions</h3>
+                        <button onclick="addFunction(${node.uuid})" class="text-[10px] bg-blue-900 hover:bg-blue-800 text-white px-2 py-1 rounded border border-blue-700">+ ADD</button>
+                    </div>
+                    <div id="func-list-${node.uuid}" class="space-y-1">
+                        ${pd.customLogic.length === 0 ? '<div class="text-[10px] text-gray-600 italic">No custom logic attached.</div>' : ''}
+                        ${pd.customLogic.map((fn, idx) => `
+                            <div class="flex gap-1">
+                                <input type="text" value="${fn}" onchange="updateFunction(${node.uuid}, ${idx}, this.value)" class="flex-1 text-[10px] py-1">
+                                <button onclick="removeFunction(${node.uuid}, ${idx})" class="bg-red-900/50 text-red-400 px-2 rounded hover:text-white">×</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                `;
+            } else {
+                html += `
+                <div class="bg-gray-950 p-4 rounded border border-gray-800 text-sm text-gray-300">
+                    ${node.desc}
+                    <div class="mt-4 p-2 bg-black rounded font-mono text-xs text-yellow-500">
+                        Logic nodes control the flow of packets but do not carry SHD-CCP payload data themselves.
+                    </div>
+                </div>`;
+            }
+            div.innerHTML = html;
+        }
+
+        // --- UPDATE HELPERS ---
+        function getNode(uuid) {
+            return [appState.chain.find(n => n.uuid === uuid), appState.workflowNodes.find(n => n.uuid === uuid)];
+        }
+        function updateNodeData(uuid, key, value) {
+            const nodes = getNode(uuid);
+            nodes.forEach(n => { if(n && n.packetData) n.packetData[key] = value; });
+            if(appState.activeNodeId === uuid) updateInspector(nodes[0] || nodes[1]);
+        }
+        function toggleParity(uuid) {
+            const nodes = getNode(uuid);
+            let newState = true;
+            nodes.forEach(n => { 
+                if(n && n.packetData) { n.packetData.parity = !n.packetData.parity; newState = n.packetData.parity; }
+            });
+            meshRotationSpeed = newState ? 0.005 : -0.005;
+            if(appState.activeNodeId === uuid) updateInspector(nodes[0] || nodes[1]);
+        }
+        function updateQuaternion(uuid, axis, value) {
+            const nodes = getNode(uuid);
+            nodes.forEach(n => { if(n && n.packetData) n.packetData.quaternion[axis] = value; });
+        }
+        function addFunction(uuid) {
+            const nodes = getNode(uuid);
+            nodes.forEach(n => { if(n && n.packetData) n.packetData.customLogic.push("fn_new_logic()"); });
+            if(appState.activeNodeId === uuid) updateInspector(nodes[0] || nodes[1]);
+        }
+        function updateFunction(uuid, index, value) {
+            const nodes = getNode(uuid);
+            nodes.forEach(n => { if(n && n.packetData) n.packetData.customLogic[index] = value; });
+        }
+        function removeFunction(uuid, index) {
+            const nodes = getNode(uuid);
+            nodes.forEach(n => { if(n && n.packetData) n.packetData.customLogic.splice(index, 1); });
+            if(appState.activeNodeId === uuid) updateInspector(nodes[0] || nodes[1]);
+        }
+
+        // --- WORKFLOW RENDER ---
+        function renderWorkflowNodes() {
+            const layer = document.getElementById('nodes-layer');
+            layer.innerHTML = '';
+            appState.workflowNodes.forEach(n => {
+                const el = document.createElement('div');
+                el.className = `workflow-node ${n.type === 'logic' ? (n.category === 'IO' ? 'io-node' : 'logic-gate') : ''}`;
+                if(n.uuid === appState.activeNodeId) el.classList.add('selected');
+                if(n.firing) { el.classList.add('firing'); n.firing = false; }
+
+                el.style.left = `${n.x}px`; el.style.top = `${n.y}px`;
+                el.style.borderLeft = `4px solid #${n.color.toString(16)}`;
+                const idTxt = n.type === 'form' ? `ID: ${n.id}` : `OP`;
+                
+                let indicators = '';
+                if (n.category === 'Gate' || n.name === 'MERGE') {
+                    const inputs = appState.connections.filter(c => c.to === n.uuid);
+                    if (inputs.length > 0) {
+                        indicators = `<div class="absolute -left-3 top-1/2 transform -translate-y-1/2 flex flex-col gap-1">`;
+                        inputs.forEach(inp => {
+                            const isActive = n.inputState && n.inputState[inp.from] && (Date.now() - n.inputState[inp.from] < 2000);
+                            indicators += `<div class="w-2 h-2 rounded-full ${isActive ? 'bg-green-400 shadow-lg shadow-green-500' : 'bg-gray-700 border border-gray-600'}"></div>`;
+                        });
+                        indicators += `</div>`;
+                    }
+                }
+
+                el.innerHTML = `
+                    ${indicators}
+                    <div class="workflow-node-header" onmousedown="startDrag(event, ${n.uuid})">
+                        <span class="text-xs font-bold text-gray-200">${n.name}</span>
+                        <div class="w-4 h-4 bg-gray-700 hover:bg-red-500 rounded text-[10px] flex items-center justify-center cursor-pointer text-white" onclick="delNode(event, ${n.uuid})">×</div>
+                    </div>
+                    <div class="p-3 bg-gray-900/50">
+                        <div class="text-[10px] text-gray-400 font-mono mb-1">${idTxt}</div>
+                        <div class="text-[10px] text-gray-500 truncate">${n.concept}</div>
+                    </div>
+                    <div class="port input" onmouseup="endConn(${n.uuid})"></div>
+                    <div class="port output" onmousedown="startConn(event, ${n.uuid})"></div>
+                `;
+                el.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    appState.activeNodeId = n.uuid;
+                    updateInspector(n); 
+                    renderWorkflowNodes(); 
+                };
+                layer.appendChild(el);
+            });
+            renderConnections();
+        }
+
+        let dragId = null, dragOff = {x:0,y:0};
+        function startDrag(e, uuid) { 
+            e.preventDefault(); e.stopPropagation();
+            dragId = uuid;
+            const el = e.target.closest('.workflow-node');
+            const rect = el.getBoundingClientRect();
+            const rawMouseX = e.clientX - rect.left;
+            const rawMouseY = e.clientY - rect.top;
+            dragOff = {x: rawMouseX, y: rawMouseY}; 
+            isPanning = false; 
+        } 
+        
+        const canvas = document.getElementById('workflow-canvas');
+        canvas.addEventListener('mousemove', (e) => {
+            if (dragId) {
+                const node = appState.workflowNodes.find(n => n.uuid === dragId);
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const worldX = (mouseX - appState.view.x) / appState.view.scale;
+                const worldY = (mouseY - appState.view.y) / appState.view.scale;
+                node.x = worldX - (dragOff.x / appState.view.scale);
+                node.y = worldY - (dragOff.y / appState.view.scale);
+                renderWorkflowNodes();
+            }
+            if (connStart) renderConnections(e);
+        });
+        canvas.addEventListener('mouseup', () => { dragId = null; if(connStart) { connStart=null; renderConnections(); } });
+
+        function delNode(e, uuid) {
+            e.stopPropagation();
+            appState.workflowNodes = appState.workflowNodes.filter(n => n.uuid !== uuid);
+            appState.connections = appState.connections.filter(c => c.from !== uuid && c.to !== uuid);
+            if(appState.activeNodeId === uuid) { appState.activeNodeId = null; updateInspector(null); }
+            renderWorkflowNodes();
+        }
+
+        // --- CONNECTIONS ---
+        let connStart = null;
+        function startConn(e, uuid) { e.stopPropagation(); connStart = {uuid, x: e.clientX, y: e.clientY}; }
+        function endConn(uuid) {
+            if (connStart && connStart.uuid !== uuid) {
+                appState.connections.push({from: connStart.uuid, to: uuid});
+            }
+        }
+        function renderConnections(e=null) {
+            const svg = document.getElementById('connections-layer');
+            const particles = Array.from(svg.querySelectorAll('.signal-particle'));
+            svg.innerHTML = '';
+            particles.forEach(p => svg.appendChild(p));
+            appState.connections.forEach(c => {
+                const n1 = appState.workflowNodes.find(n=>n.uuid === c.from);
+                const n2 = appState.workflowNodes.find(n=>n.uuid === c.to);
+                if(n1 && n2) drawPath(svg, n1, n2, `path-${c.from}-${c.to}`);
+            });
+            if (connStart && e) {
+                const rect = document.getElementById('canvas-content').getBoundingClientRect();
+                const n1 = appState.workflowNodes.find(n=>n.uuid === connStart.uuid);
+                const x1 = n1.x + 240; const y1 = n1.y + 40;
+                const x2 = (e.clientX - rect.left) / appState.view.scale;
+                const y2 = (e.clientY - rect.top) / appState.view.scale;
+                const path = `M ${x1} ${y1} C ${x1 + 100} ${y1}, ${x2 - 100} ${y2}, ${x2} ${y2}`;
+                const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                el.setAttribute("d", path); el.setAttribute("class", "connection-line active");
+                svg.appendChild(el);
+            }
+        }
+        function drawPath(svg, n1, n2, id) {
+            const x1 = n1.x + 240; const y1 = n1.y + 40;
+            const x2 = n2.x; const y2 = n2.y + 40;
+            const path = `M ${x1} ${y1} C ${x1 + (x2-x1)/2} ${y1}, ${x2 - (x2-x1)/2} ${y2}, ${x2} ${y2}`;
+            const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            el.setAttribute("d", path); el.setAttribute("class", "connection-line"); el.id = id;
+            svg.appendChild(el);
+        }
+
+        // --- SIMULATION ---
+        function updateCoherency(val) {
+            appState.sim.coherency = parseInt(val);
+            document.getElementById('coherency-val').innerText = val + "%";
+        }
+        function simStep() {
+            appState.sim.stepCount++;
+            document.getElementById('logic-timer-val').innerText = `STEP: ${appState.sim.stepCount}`;
+            processLogicStep();
+        }
+        let simInterval = null;
+        function simPlay() {
+            if (appState.sim.running) {
+                appState.sim.running = false;
+                clearInterval(simInterval);
+                document.getElementById('btn-play').innerHTML = '<span>▶</span> PLAY';
+                document.getElementById('btn-play').classList.replace('bg-yellow-600', 'bg-green-600');
+            } else {
+                appState.sim.running = true;
+                simInterval = setInterval(simStep, 1000); 
+                document.getElementById('btn-play').innerHTML = '<span>⏸</span> PAUSE';
+                document.getElementById('btn-play').classList.replace('bg-green-600', 'bg-yellow-600');
+            }
+        }
+        function simReset() {
+            appState.sim.running = false;
+            clearInterval(simInterval);
+            appState.sim.stepCount = 0;
+            appState.sim.packets = [];
+            appState.workflowNodes.forEach(n => n.inputState = {});
+            document.getElementById('logic-timer-val').innerText = "STEP: 0";
+            document.getElementById('btn-play').innerHTML = '<span>▶</span> PLAY';
+            const svg = document.getElementById('connections-layer');
+            const particles = svg.querySelectorAll('.signal-particle');
+            particles.forEach(p => p.remove());
+            renderWorkflowNodes();
+        }
+        function processLogicStep() {
+            appState.workflowNodes.filter(n => n.name === "START").forEach(node => {
+                node.firing = true;
+                const outgoing = appState.connections.filter(c => c.from === node.uuid);
+                outgoing.forEach(conn => spawnPacket(conn, true));
+            });
+            renderWorkflowNodes();
+        }
+        function spawnPacket(connection, parity = true) {
+            const pkt = { id: Math.random().toString(36).substr(2, 5), conn: connection, progress: 0, parity: parity, el: null };
+            const svg = document.getElementById('connections-layer');
+            const particle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            particle.setAttribute("r", "6");
+            particle.setAttribute("class", `signal-particle ${parity ? '' : 'negative'}`);
+            particle.setAttribute("filter", "url(#glow)");
+            svg.appendChild(particle);
+            pkt.el = particle;
+            appState.sim.packets.push(pkt);
+        }
+        let lastTime = 0;
+        function renderLoop(time) {
+            const delta = time - lastTime; lastTime = time;
+            const synchPhase = (time % 2000) / 2000;
+            const synchDot = document.getElementById('global-synch-dot');
+            if(synchDot) synchDot.style.backgroundColor = synchPhase < 0.1 ? "#34d399" : "#4b5563";
+
+            const svg = document.getElementById('connections-layer');
+            for (let i = appState.sim.packets.length - 1; i >= 0; i--) {
+                const pkt = appState.sim.packets[i];
+                pkt.progress += delta / 800;
+                const pathId = `path-${pkt.conn.from}-${pkt.conn.to}`;
+                const pathEl = document.getElementById(pathId);
+                if (pathEl && pkt.progress < 1) {
+                    const length = pathEl.getTotalLength();
+                    const point = pathEl.getPointAtLength(pkt.progress * length);
+                    let jitterX = 0, jitterY = 0;
+                    if (appState.sim.coherency < 95) {
+                        const noise = (100 - appState.sim.coherency) * 0.2;
+                        jitterX = (Math.random() - 0.5) * noise; jitterY = (Math.random() - 0.5) * noise;
+                    }
+                    pkt.el.setAttribute("cx", point.x + jitterX); pkt.el.setAttribute("cy", point.y + jitterY);
+                    const resonance = 0.5 + 0.5 * Math.sin(synchPhase * Math.PI * 2);
+                    pkt.el.style.opacity = 0.5 + (0.5 * resonance); pkt.el.setAttribute("r", 4 + (2 * resonance));
+                } else {
+                    if(pkt.el) svg.removeChild(pkt.el);
+                    appState.sim.packets.splice(i, 1);
+                    triggerNextNodes(pkt.conn.to, pkt.conn.from, pkt.parity);
+                }
+            }
+            requestAnimationFrame(renderLoop);
+        }
+        requestAnimationFrame(renderLoop);
+
+        function triggerNextNodes(nodeUuid, fromUuid, incomingParity) {
+            const node = appState.workflowNodes.find(n => n.uuid === nodeUuid);
+            if (!node) return;
+            let shouldFire = true;
+            let outputParity = incomingParity;
+            if (node.type === 'logic' && node.category === 'Gate') {
+                if(!node.inputState) node.inputState = {};
+                node.inputState[fromUuid] = Date.now();
+                renderWorkflowNodes();
+                const inputs = appState.connections.filter(c => c.to === nodeUuid);
+                const activeInputs = inputs.filter(inp => {
+                    const lastActive = node.inputState[inp.from];
+                    return lastActive && (Date.now() - lastActive < 2000);
+                }).length;
+                switch(node.name) {
+                    case 'AND': case 'NAND': shouldFire = (activeInputs === inputs.length); if (node.name === 'NAND') outputParity = !outputParity; break;
+                    case 'OR': case 'NOR': shouldFire = true; if (node.name === 'NOR') outputParity = !outputParity; break;
+                    case 'NOT': outputParity = !outputParity; break;
+                    case 'XOR': case 'XNOR': shouldFire = true; break;
+                }
+            } else if (node.type === 'form') {
+                if(node.packetData && !node.packetData.parity) outputParity = !outputParity;
+            }
+            if (shouldFire) {
+                node.firing = true;
+                setTimeout(() => { node.firing = false; renderWorkflowNodes(); }, 200);
+                const outgoing = appState.connections.filter(c => c.from === nodeUuid);
+                outgoing.forEach(conn => spawnPacket(conn, outputParity));
+            }
+        }
+
+        // --- PAN ZOOM ---
+        let isPanning = false, startPan = {x:0, y:0};
+        const content = document.getElementById('canvas-content');
+        
+        canvas.onmousedown = (e) => {
+            if (['workflow-canvas', 'connections-layer', 'nodes-layer'].includes(e.target.id)) {
+                isPanning = true; startPan = { x: e.clientX - appState.view.x, y: e.clientY - appState.view.y };
+                canvas.style.cursor = 'grabbing';
+            }
+        };
+        window.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                appState.view.x = e.clientX - startPan.x; appState.view.y = e.clientY - startPan.y;
+                updateCanvasTransform();
+            }
+        });
+        window.addEventListener('mouseup', () => { isPanning = false; canvas.style.cursor = 'grab'; });
+        canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoomCanvas(-e.deltaY * 0.001); });
+        function zoomCanvas(amount) { appState.view.scale += amount; if (appState.view.scale < 0.2) appState.view.scale = 0.2; if (appState.view.scale > 3) appState.view.scale = 3; updateCanvasTransform(); }
+        function resetCanvasView() { appState.view = { scale: 1, x: 0, y: 0 }; updateCanvasTransform(); }
+        function updateCanvasTransform() { content.style.transform = `translate(${appState.view.x}px, ${appState.view.y}px) scale(${appState.view.scale})`; }
+
+        // --- UI & INIT ---
+        function handleResize() {
+            const activeEl = appState.mode === 'builder' ? document.getElementById('view-builder') : document.getElementById('view-workflow');
+            if (activeEl && activeEl.clientWidth > 0) {
+                camera.aspect = activeEl.clientWidth / activeEl.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(activeEl.clientWidth, activeEl.clientHeight);
+            }
+        }
+        function toggleSidebar(side) {
+            const el = document.getElementById(`${side}-sidebar`);
+            const isOpen = appState.sidebars[side];
+            if (isOpen) { el.classList.add('w-0', 'border-0', 'sidebar-collapsed'); el.classList.remove('w-80', 'w-96', 'p-6', 'border-r', 'border-l'); }
+            else { el.classList.remove('w-0', 'border-0', 'sidebar-collapsed'); if(side==='left') el.classList.add('w-80','border-r'); if(side==='right') el.classList.add('w-96','p-6','border-l'); }
+            appState.sidebars[side] = !isOpen; setTimeout(handleResize, 350);
+        }
+        function switchView(mode) {
+            appState.mode = mode;
+            const b = document.getElementById('view-builder'); const w = document.getElementById('view-workflow');
+            const bb = document.getElementById('btn-builder'); const bw = document.getElementById('btn-workflow');
+            const tbl = document.getElementById('toolbox-builder'); const tbw = document.getElementById('toolbox-workflow');
+            const title = document.getElementById('toolbox-title');
+            if (mode === 'builder') {
+                b.style.opacity = '1'; b.style.pointerEvents = 'auto'; w.style.opacity = '0'; w.style.pointerEvents = 'none';
+                bb.classList.replace('bg-gray-800', 'bg-gray-700'); bb.classList.replace('text-gray-400', 'text-white'); bw.classList.replace('text-white', 'text-gray-400');
+                tbl.classList.remove('hidden'); tbw.classList.add('hidden'); title.innerText = "Structural Forms";
+                if(appState.activeNodeId) selectStackNode(appState.activeNodeId);
+            } else {
+                b.style.opacity = '0'; b.style.pointerEvents = 'none'; w.style.opacity = '1'; w.style.pointerEvents = 'auto';
+                bw.classList.replace('text-gray-400', 'text-white'); bb.classList.replace('text-white', 'text-gray-400'); bb.classList.replace('bg-gray-700', 'bg-gray-800');
+                tbl.classList.add('hidden'); tbw.classList.remove('hidden'); title.innerText = "Logic Operations";
+                syncChainToWorkflow(); 
+                if(appState.activeNodeId) updateInspector(appState.workflowNodes.find(n => n.uuid === appState.activeNodeId));
+            }
+        }
+        function initToolboxes() {
+            const bContainer = document.getElementById('toolbox-builder');
+            const wContainer = document.getElementById('toolbox-workflow');
+            const tiers = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+            FORMS.forEach(f => tiers[f.tier].push(f));
+            for (let t = 1; t <= 5; t++) {
+                const section = document.createElement('div');
+                section.innerHTML = `<h3 class="text-xs font-bold text-gray-500 mb-2 mt-4 uppercase pl-1">Tier ${t}</h3>`;
+                const grid = document.createElement('div'); grid.className = "grid grid-cols-1 gap-2";
+                tiers[t].forEach(f => grid.appendChild(createToolBtn(f, 'form')));
+                section.appendChild(grid); bContainer.appendChild(section);
+            }
+            const cats = { 'IO': [], 'Gate': [], 'Flow': [] };
+            LOGIC_OPS.forEach(op => cats[op.category].push(op));
+            for (let c in cats) {
+                const section = document.createElement('div');
+                section.innerHTML = `<h3 class="text-xs font-bold text-gray-500 mb-2 mt-4 uppercase pl-1">${c}</h3>`;
+                const grid = document.createElement('div'); grid.className = "grid grid-cols-1 gap-2";
+                cats[c].forEach(op => grid.appendChild(createToolBtn(op, 'logic')));
+                section.appendChild(grid); wContainer.appendChild(section);
+            }
+        }
+        function createToolBtn(data, type) {
+            const btn = document.createElement('div'); btn.draggable = true;
+            btn.className = "p-2 bg-gray-900 border border-gray-800 hover:border-green-500 hover:bg-gray-800 rounded cursor-pointer flex items-center gap-3 transition-colors select-none group";
+            let iconHtml = type === 'form' 
+                ? `<div class="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-black" style="background-color: #${data.color.toString(16)}">${data.id}</div>`
+                : `<div class="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-white border border-gray-600 font-mono">${data.name.substr(0,2)}</div>`;
+            btn.innerHTML = `${iconHtml}<div><div class="text-xs font-bold text-gray-200 group-hover:text-green-400">${data.name}</div><div class="text-[10px] text-gray-500 truncate w-40">${data.concept}</div></div>`;
+            btn.onclick = () => { if (appState.mode === 'builder' && type === 'form') addToStack(data.id); else if (appState.mode === 'workflow') addToWorkflow(data.id, type); };
+            btn.ondragstart = (e) => { e.dataTransfer.setData("id", data.id); e.dataTransfer.setData("type", type); };
+            return btn;
+        }
+
+        // Init
+        initToolboxes();
+        addToStack(0);
+        addToStack(11);
+    </script>
+</body>
+</html>
