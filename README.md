@@ -1,4 +1,4 @@
-# **HD-CCP Website Project Structure**
+# **SHD-CCP Website Project Structure**
 
 This document serves as the structural guide for the **SHD-CCP (Symbolic High-Dimensional Context Compression Protocol)** website.
 Follow this file layout to ensure all navigation links, tutorials, and the simulation engine function correctly when deployed to your VPS or GitHub Pages.
