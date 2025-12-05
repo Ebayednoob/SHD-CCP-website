@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYSTEM_MANUAL: QUATERNION_LATTICE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body { 
+            font-family: 'JetBrains Mono', monospace; 
+            background-color: #050505;
+            color: #4ade80; /* bright green */
+        }
+        
+        /* CRT Scanline Effect */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 50;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #000; border-left: 1px solid #14532d; }
+        ::-webkit-scrollbar-thumb { background: #15803d; border: 1px solid #000; }
+        ::-webkit-scrollbar-thumb:hover { background: #22c55e; }
+
+        /* Terminal Card Style */
+        .term-panel {
+            background: #000000;
+            border: 1px solid #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.1);
+            position: relative;
+        }
+        .term-panel::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            box-shadow: inset 0 0 20px rgba(34, 197, 94, 0.05);
+            pointer-events: none;
+        }
+
+        /* Active selection in ISA list */
+        .active-isa-item {
+            background: #22c55e !important;
+            color: #000 !important;
+        }
+        .active-isa-item * { color: #000 !important; }
+
+        .glow-text {
+            text-shadow: 0 0 10px #22c55e;
+        }
+
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(34, 197, 94, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(34, 197, 94, 0.1) 1px, transparent 1px);
+        }
+        
+        /* Logic Gates */
+        .gate-symbol {
+            width: 60px; height: 40px;
+            border: 2px solid #22c55e;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #22c55e; position: relative;
+        }
+        .gate-and { border-radius: 0 40px 40px 0; border-left: 2px solid #22c55e; }
+        .gate-xor { border-radius: 50%; border-left: none; }
+        .gate-xor::before { content: ''; position: absolute; left: -5px; top: 0; bottom: 0; width: 10px; border-right: 2px solid #22c55e; border-radius: 50%; }
+
+        .bit-block { transition: transform 0.1s; cursor: crosshair; }
+        .bit-block:hover { transform: translateY(-2px); box-shadow: 0 4px 0 #22c55e; z-index: 10; background: #000; border-color: #4ade80; }
+
+        .katex { font-family: 'JetBrains Mono', monospace !important; font-size: 1.0em; color: #86efac; }
+        
+        /* Animation Utility */
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body class="bg-black text-green-400 selection:bg-green-500 selection:text-black overflow-x-hidden">
+
+    <!-- NAVIGATION -->
+    <nav class="fixed top-0 w-full z-40 border-b border-green-800 bg-black/90 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-green-500 blink">█</span>
+                <span class="font-bold tracking-widest text-green-400">QL_OS <span class="text-xs align-top">v1.2</span></span>
+            </div>
+            <div class="hidden md:flex gap-8 text-xs font-bold uppercase tracking-widest text-green-700">
+                <a href="#concept" class="hover:text-green-400 hover:underline decoration-2 transition">01_Concept</a>
+                <a href="#architecture" class="hover:text-green-400 hover:underline decoration-2 transition">02_Arch</a>
+                <a href="#analogy" class="hover:text-green-400 hover:underline decoration-2 transition">03_Logic</a>
+                <a href="#protocol" class="hover:text-green-400 hover:underline decoration-2 transition">04_Proto</a>
+                <a href="#gates" class="hover:text-green-400 hover:underline decoration-2 transition">05_Gates</a>
+            </div>
+            <a href="#gates" class="px-4 py-1 border border-green-600 hover:bg-green-600 hover:text-black text-xs font-bold uppercase transition">
+                > RUN_SIM
+            </a>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <header class="relative min-h-screen flex items-center justify-center pt-16 border-b border-green-900">
+        <div class="absolute inset-0 grid-bg opacity-20 pointer-events-none"></div>
+        <div class="relative z-10 max-w-4xl mx-auto px-6 text-center">
+            <div class="inline-block border border-green-500/50 bg-green-900/10 px-4 py-1 mb-8 text-xs tracking-[0.2em] text-green-300">
+                SYSTEM_STATUS: ONLINE
+            </div>
+            <h1 class="text-4xl md:text-6xl font-bold mb-6 text-white glow-text tracking-tighter">
+                QUATERNION_LATTICE
+            </h1>
+            <p class="text-lg text-green-600/80 max-w-2xl mx-auto mb-10 leading-relaxed font-bold">
+                // COMPUTING IN FOUR DIMENSIONS<br>
+                // REPLACING LINEAR THREADS WITH GEOMETRIC FLOWS
+            </p>
+            <div class="flex justify-center gap-4">
+                <button onclick="document.getElementById('architecture').scrollIntoView({behavior:'smooth'})" class="px-8 py-3 bg-green-600 text-black font-bold hover:bg-green-400 transition uppercase tracking-widest text-sm">
+                    [ Initialize_Learning ]
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 01: CONCEPT -->
+    <section id="concept" class="py-24 border-b border-green-900">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="mb-12 border-l-4 border-green-600 pl-6">
+                <span class="text-green-800 font-bold text-xs uppercase tracking-widest">Chapter 01</span>
+                <h2 class="text-3xl font-bold text-white mt-1">THE_BOTTLENECK</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-16 items-center">
+                <div class="space-y-8 text-sm">
+                    <p class="text-green-300 leading-relaxed">
+                        > ERROR: STANDARD_CPU_LIMIT_REACHED<br>
+                        Traditional processors treat 3D space as a linear list of numbers. This causes massive overhead when calculating rotation or physics.
+                    </p>
+                    <ul class="space-y-4 font-bold text-green-500/80">
+                        <li class="flex gap-4 items-center">
+                            <span class="text-red-500">[x]</span> MATRIX_BLOAT: 16 floats for 1 rotation.
+                        </li>
+                        <li class="flex gap-4 items-center">
+                            <span class="text-red-500">[x]</span> GIMBAL_LOCK: Euler angles fail at poles.
+                        </li>
+                        <li class="flex gap-4 items-center text-green-400">
+                            <span>[>]</span> SOLUTION: Hardware-level Quaternions ($q = a + bi + cj + dk$).
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Retro Schematic -->
+                <div class="term-panel p-6">
+                    <div class="flex justify-between border-b border-green-800 pb-2 mb-4 text-xs text-green-700">
+                        <span>OP_COMPARISON</span>
+                        <span>ADDR:0x001</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-xs font-bold text-center">
+                        <div class="opacity-50">
+                            <div class="mb-2 text-red-500">LEGACY_MATRIX</div>
+                            <div class="border border-green-900 p-2 text-green-800">
+                                FLOPS: 64<br>MEM: 128B
+                            </div>
+                        </div>
+                        <div>
+                            <div class="mb-2 text-green-400 blink">LATTICE_CORE</div>
+                            <div class="border border-green-500 p-2 bg-green-900/20 text-green-300">
+                                FLOPS: 16<br>MEM: 16B
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 02: ARCHITECTURE -->
+    <section id="architecture" class="py-24 border-b border-green-900 bg-green-900/5">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="inline-block border border-green-500 px-3 py-1 text-xs text-green-400 font-bold mb-8">
+                VISUALIZING_HARDWARE_TOPOLOGY
+            </div>
+            
+            <div class="flex flex-col lg:flex-row gap-12 items-center justify-center">
+                <!-- Canvas Container -->
+                <div class="relative w-[400px] h-[400px] term-panel rounded-full overflow-hidden flex items-center justify-center bg-black">
+                    <canvas id="cubeCanvas" width="400" height="400"></canvas>
+                    <div class="absolute top-4 left-1/2 -translate-x-1/2 text-xs font-bold text-amber-500">SCALAR (a)</div>
+                    <div class="absolute top-1/2 left-4 -translate-y-1/2 text-xs font-bold text-green-500">VECTOR (i)</div>
+                </div>
+
+                <div class="max-w-md text-left space-y-6">
+                    <div class="term-panel p-6 border-l-4 border-l-amber-500">
+                        <h3 class="text-amber-500 font-bold mb-2">> VERTICAL_AXIS (Scalar)</h3>
+                        <p class="text-xs text-green-600">Carries Magnitude ($a$). It acts as the "Enable" voltage or "Control Rod" of the calculation.</p>
+                    </div>
+                    <div class="term-panel p-6 border-l-4 border-l-green-500">
+                        <h3 class="text-green-500 font-bold mb-2">> LATERAL_AXES (Vector)</h3>
+                        <p class="text-xs text-green-600">Carry Direction ($i, j, k$). Data flows through X, Y, Z faces to perform cross-product rotations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 03: LOGIC ANALOGY -->
+    <section id="analogy" class="py-24 border-b border-green-900">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-12 border-l-4 border-green-600 pl-6">
+                <span class="text-green-800 font-bold text-xs uppercase tracking-widest">Chapter 03</span>
+                <h2 class="text-3xl font-bold text-white mt-1">LOGIC_TRANSLATION_LAYER</h2>
+                <p class="text-sm text-green-600 mt-2">Mapping 2D Boolean Logic (0/1) to 4D Geometric Logic (Vector/Scalar).</p>
+            </div>
+
+            <div class="space-y-16">
+                
+                <!-- NOT GATE -->
+                <div class="term-panel p-6">
+                    <div class="flex justify-between items-start mb-6 border-b border-green-900 pb-4">
+                        <div>
+                            <h3 class="text-white font-bold text-xl">NOT GATE <span class="text-green-600 text-sm">// INVERTER</span></h3>
+                            <div class="text-xs text-green-500 mt-1">OP: QCONJ (Conjugate)</div>
+                        </div>
+                        <div class="border border-green-500 px-2 py-1 text-xs">FUNC: INV(v)</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- State 1 -->
+                        <div class="bg-black border border-green-900 p-2 text-center">
+                            <div class="text-[10px] text-green-700 mb-1">IN: UP</div>
+                            <svg viewBox="0 0 100 100" class="w-full h-20 mb-1">
+                                <line x1="50" y1="50" x2="50" y2="20" stroke="#4ade80" stroke-width="2" marker-end="url(#head-grn)" />
+                                <line x1="50" y1="50" x2="50" y2="80" stroke="#fbbf24" stroke-width="2" marker-end="url(#head-amb)" />
+                            </svg>
+                            <div class="text-[10px] text-amber-500 font-bold">OUT: DOWN</div>
+                        </div>
+                        <!-- State 2 -->
+                        <div class="bg-black border border-green-900 p-2 text-center opacity-50">
+                            <div class="text-[10px] text-green-700 mb-1">IN: RIGHT</div>
+                            <svg viewBox="0 0 100 100" class="w-full h-20 mb-1">
+                                <line x1="50" y1="50" x2="80" y2="50" stroke="#4ade80" stroke-width="2" marker-end="url(#head-grn)" />
+                                <line x1="50" y1="50" x2="20" y2="50" stroke="#fbbf24" stroke-width="2" marker-end="url(#head-amb)" />
+                            </svg>
+                            <div class="text-[10px] text-amber-500 font-bold">OUT: LEFT</div>
+                        </div>
+                        <!-- State 3 -->
+                        <div class="bg-black border border-green-900 p-2 text-center opacity-50">
+                            <div class="text-[10px] text-green-700 mb-1">IN: DOWN</div>
+                            <svg viewBox="0 0 100 100" class="w-full h-20 mb-1">
+                                <line x1="50" y1="50" x2="50" y2="80" stroke="#4ade80" stroke-width="2" marker-end="url(#head-grn)" />
+                                <line x1="50" y1="50" x2="50" y2="20" stroke="#fbbf24" stroke-width="2" marker-end="url(#head-amb)" />
+                            </svg>
+                            <div class="text-[10px] text-amber-500 font-bold">OUT: UP</div>
+                        </div>
+                        <!-- State 4 -->
+                        <div class="bg-black border border-green-900 p-2 text-center opacity-50">
+                            <div class="text-[10px] text-green-700 mb-1">IN: LEFT</div>
+                            <svg viewBox="0 0 100 100" class="w-full h-20 mb-1">
+                                <line x1="50" y1="50" x2="20" y2="50" stroke="#4ade80" stroke-width="2" marker-end="url(#head-grn)" />
+                                <line x1="50" y1="50" x2="80" y2="50" stroke="#fbbf24" stroke-width="2" marker-end="url(#head-amb)" />
+                            </svg>
+                            <div class="text-[10px] text-amber-500 font-bold">OUT: RIGHT</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AND GATE -->
+                <div class="term-panel p-6">
+                    <div class="flex justify-between items-start mb-6 border-b border-green-900 pb-4">
+                        <div>
+                            <h3 class="text-white font-bold text-xl">AND GATE <span class="text-green-600 text-sm">// SCALAR MULTIPLY</span></h3>
+                            <div class="text-xs text-green-500 mt-1">OP: QSCALE ($a \cdot b$)</div>
+                        </div>
+                        <div class="border border-green-500 px-2 py-1 text-xs">FUNC: MAGNITUDE</div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 text-center text-xs">
+                        <div class="bg-black border border-green-900 p-4 opacity-50">
+                            <div class="text-green-700">0 & 0</div>
+                            <div class="text-white font-bold mt-2">NULL</div>
+                        </div>
+                        <div class="bg-black border border-green-900 p-4 opacity-50">
+                            <div class="text-green-700">0 & 1</div>
+                            <div class="text-white font-bold mt-2">BLOCKED</div>
+                        </div>
+                        <div class="bg-black border border-green-900 p-4 opacity-50">
+                            <div class="text-green-700">1 & 0</div>
+                            <div class="text-white font-bold mt-2">BLOCKED</div>
+                        </div>
+                        <div class="bg-green-900/20 border border-green-500 p-4">
+                            <div class="text-green-400">1 & 1</div>
+                            <div class="text-green-400 font-bold mt-2 blink">FLOW</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- XOR GATE -->
+                <div class="term-panel p-6">
+                    <div class="flex justify-between items-start mb-6 border-b border-green-900 pb-4">
+                        <div>
+                            <h3 class="text-white font-bold text-xl">XOR GATE <span class="text-green-600 text-sm">// CROSS PRODUCT</span></h3>
+                            <div class="text-xs text-green-500 mt-1">OP: QCROSS ($p \times q$)</div>
+                        </div>
+                        <div class="border border-green-500 px-2 py-1 text-xs">FUNC: ORTHOGONALITY</div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-black border border-green-900 p-2 text-center opacity-50">
+                            <div class="text-[10px] text-green-700">0^0</div>
+                            <div class="h-16 flex items-center justify-center text-xs text-gray-600">NULL</div>
+                        </div>
+                        <div class="bg-black border border-green-500/50 p-2 text-center">
+                            <div class="text-[10px] text-green-400">1^0</div>
+                            <svg viewBox="0 0 100 60" class="w-full h-16">
+                                <line x1="10" y1="30" x2="90" y2="30" stroke="#4ade80" stroke-width="2" marker-end="url(#head-grn)" />
+                            </svg>
+                            <div class="text-[10px] text-green-400">PASS A</div>
+                        </div>
+                        <div class="bg-black border border-green-500/50 p-2 text-center">
+                            <div class="text-[10px] text-green-400">0^1</div>
+                            <svg viewBox="0 0 100 60" class="w-full h-16">
+                                <line x1="50" y1="55" x2="50" y2="5" stroke="#fbbf24" stroke-width="2" marker-end="url(#head-amb)" />
+                            </svg>
+                            <div class="text-[10px] text-amber-500">PASS B</div>
+                        </div>
+                        <div class="bg-black border border-green-900 p-2 text-center">
+                            <div class="text-[10px] text-green-700">1^1</div>
+                            <svg viewBox="0 0 100 60" class="w-full h-16">
+                                <line x1="10" y1="30" x2="40" y2="30" stroke="#ef4444" stroke-width="2" opacity="0.5"/>
+                                <line x1="90" y1="30" x2="60" y2="30" stroke="#ef4444" stroke-width="2" opacity="0.5"/>
+                                <text x="50" y="35" text-anchor="middle" fill="#ef4444" font-size="20">×</text>
+                            </svg>
+                            <div class="text-[10px] text-red-500">CANCEL</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- XNOR GATE -->
+                <div class="term-panel p-6">
+                    <div class="flex justify-between items-start mb-6 border-b border-green-900 pb-4">
+                        <div>
+                            <h3 class="text-white font-bold text-xl">XNOR GATE <span class="text-green-600 text-sm">// DOT PRODUCT</span></h3>
+                            <div class="text-xs text-green-500 mt-1">OP: QDOT ($p \cdot q$)</div>
+                        </div>
+                        <div class="border border-green-500 px-2 py-1 text-xs">FUNC: SIMILARITY</div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-black border border-green-900 p-2 text-center">
+                            <div class="text-[10px] text-green-700">0==0</div>
+                            <div class="h-16 flex items-center justify-center text-[10px] text-gray-500">LOW STATE</div>
+                        </div>
+                        <div class="bg-black border border-green-900 p-2 text-center opacity-50">
+                            <div class="text-[10px] text-green-700">1==0</div>
+                            <svg viewBox="0 0 100 60" class="w-full h-16">
+                                <path d="M 20 30 L 80 30 M 50 10 L 50 50" stroke="#334155" stroke-width="2" />
+                            </svg>
+                            <div class="text-[10px] text-gray-500">ORTHO</div>
+                        </div>
+                        <div class="bg-black border border-green-900 p-2 text-center opacity-50">
+                            <div class="text-[10px] text-green-700">0==1</div>
+                            <svg viewBox="0 0 100 60" class="w-full h-16">
+                                <path d="M 50 10 L 50 50 M 20 30 L 80 30" stroke="#334155" stroke-width="2" />
+                            </svg>
+                            <div class="text-[10px] text-gray-500">ORTHO</div>
+                        </div>
+                        <div class="bg-green-900/20 border border-green-500 p-2 text-center">
+                            <div class="text-[10px] text-green-400">1==1</div>
+                            <svg viewBox="0 0 100 60" class="w-full h-16">
+                                <line x1="20" y1="20" x2="80" y2="20" stroke="#4ade80" stroke-width="2" marker-end="url(#head-grn)" />
+                                <line x1="20" y1="40" x2="80" y2="40" stroke="#4ade80" stroke-width="2" marker-end="url(#head-grn)" />
+                            </svg>
+                            <div class="text-[10px] text-green-400 font-bold">PARALLEL</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NAND & NOR (Simplified) -->
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="term-panel p-4">
+                        <div class="text-xs font-bold text-white mb-2">NAND GATE <span class="text-red-500">// INVERTED AND</span></div>
+                        <div class="bg-black border border-red-900/50 p-4 text-center">
+                            <div class="text-xs text-red-400 mb-2">Logic: Default HIGH</div>
+                            <svg viewBox="0 0 100 40" class="w-full h-12">
+                                <line x1="10" y1="20" x2="90" y2="20" stroke="#ef4444" stroke-width="2" stroke-dasharray="4" />
+                            </svg>
+                            <div class="text-[10px] text-red-500 mt-2">Only BLOCKED if input is (1,1)</div>
+                        </div>
+                    </div>
+                    <div class="term-panel p-4">
+                        <div class="text-xs font-bold text-white mb-2">NOR GATE <span class="text-indigo-500">// INVERTED OR</span></div>
+                        <div class="bg-black border border-indigo-900/50 p-4 text-center">
+                            <div class="text-xs text-indigo-400 mb-2">Logic: Default HIGH</div>
+                            <svg viewBox="0 0 100 40" class="w-full h-12">
+                                <line x1="10" y1="20" x2="90" y2="20" stroke="#818cf8" stroke-width="2" stroke-dasharray="4" />
+                            </svg>
+                            <div class="text-[10px] text-indigo-500 mt-2">COLLAPSES if any input > 0</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- 04: PROTOCOL -->
+    <section id="protocol" class="py-24 border-b border-green-900">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-12 border-l-4 border-green-600 pl-6">
+                <span class="text-green-800 font-bold text-xs uppercase tracking-widest">Chapter 04</span>
+                <h2 class="text-3xl font-bold text-white mt-1">SHD-CCP PROTOCOL</h2>
+                <p class="text-sm text-green-600 mt-2">Symbolic High-dimensional Context Compression Protocol (64-bit).</p>
+            </div>
+
+            <div class="term-panel p-6 mb-12 overflow-x-auto">
+                <div class="flex min-w-[800px] mb-2 font-mono text-[10px] text-green-800 justify-between px-1">
+                    <span>63</span><span>48</span><span>40</span><span>32</span><span>0</span>
+                </div>
+                
+                <div class="flex h-24 min-w-[800px] gap-1">
+                    <!-- Scaler -->
+                    <div class="flex-none w-[25%] border border-amber-600/50 bg-amber-900/10 flex flex-col items-center justify-center bit-block">
+                        <span class="text-amber-500 font-bold text-xs">SCALER [63-48]</span>
+                        <span class="text-[10px] text-amber-700">SIGNAL STRENGTH (FP16)</span>
+                    </div>
+                    <!-- Dynamics -->
+                    <div class="flex-none w-[12.5%] border border-green-600/50 bg-green-900/10 flex flex-col items-center justify-center bit-block">
+                        <span class="text-green-500 font-bold text-xs">DYNAMICS</span>
+                        <span class="text-[10px] text-green-700">[47-40]</span>
+                    </div>
+                    <!-- State -->
+                    <div class="flex-none w-[12.5%] border border-purple-600/50 bg-purple-900/10 flex flex-col items-center justify-center bit-block">
+                        <span class="text-purple-500 font-bold text-xs">STATE</span>
+                        <span class="text-[10px] text-purple-700">[39-32]</span>
+                    </div>
+                    <!-- Quaternion -->
+                    <div class="flex-1 border border-gray-600/50 bg-gray-900/10 flex flex-col items-center justify-center bit-block">
+                        <span class="text-gray-400 font-bold text-xs">QUATERNION [31-0]</span>
+                        <span class="text-[10px] text-gray-600">FP8x4 (w,x,y,z)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 05: GATES (Visualizer) -->
+    <section id="gates" class="py-24 bg-green-900/5">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-2xl font-bold text-white mb-2">>> GATE_SIMULATOR</h2>
+                <p class="text-xs text-green-600">INTERACTIVE_DEBUG_CONSOLE</p>
+            </div>
+            
+            <div class="grid lg:grid-cols-12 gap-8 h-[750px]">
+                <!-- LEFT COLUMN -->
+                <div class="lg:col-span-3 flex flex-col gap-2 overflow-y-auto pr-2 custom-scroll">
+                    <div class="text-[10px] font-bold text-green-800 uppercase tracking-widest mt-2 mb-1 px-2">Binary Ops</div>
+                    <button onclick="selectISA('QHPRD')" id="btn-QHPRD" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 active-isa-item transition">
+                        > QHPRD [Hamilton]
+                    </button>
+                    <button onclick="selectISA('QDOT')" id="btn-QDOT" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 transition">
+                        > QDOT [Dot Prod]
+                    </button>
+                    <button onclick="selectISA('QCROSS')" id="btn-QCROSS" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 transition">
+                        > QCROSS [Cross]
+                    </button>
+
+                    <div class="text-[10px] font-bold text-green-800 uppercase tracking-widest mt-4 mb-1 px-2">Unary Ops</div>
+                    <button onclick="selectISA('QCONJ')" id="btn-QCONJ" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 transition">
+                        > QCONJ [Invert]
+                    </button>
+                    <button onclick="selectISA('QNORM')" id="btn-QNORM" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 transition">
+                        > QNORM [Magnitude]
+                    </button>
+                    <button onclick="selectISA('QUNIT')" id="btn-QUNIT" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 transition">
+                        > QUNIT [Normalize]
+                    </button>
+                    
+                    <div class="text-[10px] font-bold text-green-800 uppercase tracking-widest mt-4 mb-1 px-2">Routing</div>
+                    <button onclick="selectISA('QPROJ')" id="btn-QPROJ" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 transition">
+                        > QPROJ [Project]
+                    </button>
+                    <button onclick="selectISA('QSPLIT')" id="btn-QSPLIT" class="text-left p-3 border border-green-900 hover:border-green-500 text-xs font-bold text-green-500 transition">
+                        > QSPLIT [Split]
+                    </button>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="lg:col-span-9 term-panel relative overflow-hidden flex flex-col bg-black">
+                    <div class="absolute top-4 left-4 z-10 bg-black border border-green-500 px-3 py-1 text-xs text-green-400" id="visualizer-status">STATUS: RUNNING</div>
+                    <canvas id="isaCanvas" class="w-full h-full flex-1 cursor-crosshair"></canvas>
+                    <div class="h-10 border-t border-green-900 bg-black flex items-center px-6 gap-6 text-[10px] font-bold text-green-700">
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 bg-amber-500"></div> SCALAR</div>
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500"></div> VECTOR A</div>
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 bg-purple-500"></div> VECTOR B</div>
+                        <div class="flex-1 text-right text-green-400 text-sm" id="formula-display"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hidden SVG Defs -->
+    <svg width="0" height="0">
+        <defs>
+            <marker id="head-grn" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#4ade80" /></marker>
+            <marker id="head-amb" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#fbbf24" /></marker>
+            <marker id="head-purp" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#a855f7" /></marker>
+        </defs>
+    </svg>
+
+    <script>
+        lucide.createIcons();
+
+        // Init Math
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+                throwOnError : false
+            });
+        });
+
+        // -----------------------
+        // CUBE VISUALIZER (Green Theme)
+        // -----------------------
+        const cubeCanvas = document.getElementById('cubeCanvas');
+        const ctxCube = cubeCanvas.getContext('2d');
+        let cubeRot = 0;
+
+        function drawCubeLoop() {
+            ctxCube.clearRect(0, 0, 400, 400);
+            const cx = 200, cy = 200;
+            const cos = Math.cos(cubeRot);
+            const sin = Math.sin(cubeRot);
+            const size = 80;
+
+            const vertices = [
+                {x: -1, y: -1, z: -1}, {x: 1, y: -1, z: -1}, {x: 1, y: 1, z: -1}, {x: -1, y: 1, z: -1},
+                {x: -1, y: -1, z: 1}, {x: 1, y: -1, z: 1}, {x: 1, y: 1, z: 1}, {x: -1, y: 1, z: 1}
+            ];
+
+            const projected = vertices.map(v => {
+                const x1 = v.x * cos - v.z * sin;
+                const z1 = v.x * sin + v.z * cos;
+                const scale = 300 / (300 + z1);
+                return { x: cx + x1 * size * scale, y: cy + v.y * size * scale };
+            });
+
+            const edges = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6], [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
+
+            // Draw Edges (Dark Green)
+            ctxCube.lineWidth = 2;
+            ctxCube.strokeStyle = '#14532d';
+            edges.forEach(e => {
+                const p1 = projected[e[0]];
+                const p2 = projected[e[1]];
+                ctxCube.beginPath(); ctxCube.moveTo(p1.x, p1.y); ctxCube.lineTo(p2.x, p2.y); ctxCube.stroke();
+            });
+
+            // Core
+            ctxCube.fillStyle = '#064e3b';
+            ctxCube.beginPath(); ctxCube.arc(cx, cy, 10, 0, Math.PI*2); ctxCube.fill();
+
+            // Flows
+            const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
+            
+            // Scalar (Amber)
+            ctxCube.strokeStyle = '#d97706'; ctxCube.lineWidth = 2;
+            ctxCube.beginPath(); ctxCube.moveTo(cx, cy-120); ctxCube.lineTo(cx, cy+120); ctxCube.stroke();
+            
+            // Vector (Neon Green)
+            const vecX = cos * 120;
+            ctxCube.strokeStyle = '#22c55e';
+            ctxCube.beginPath(); ctxCube.moveTo(cx-vecX, cy); ctxCube.lineTo(cx+vecX, cy); ctxCube.stroke();
+
+            // Packet
+            ctxCube.fillStyle = `rgba(34, 197, 94, ${pulse})`;
+            ctxCube.beginPath(); ctxCube.arc(cx + vecX*0.5, cy, 4, 0, Math.PI*2); ctxCube.fill();
+
+            cubeRot += 0.005;
+            requestAnimationFrame(drawCubeLoop);
+        }
+        drawCubeLoop();
+
+        // -----------------------
+        // ISA VISUALIZER
+        // -----------------------
+        let currentISA = 'QHPRD';
+        const isaCanvas = document.getElementById('isaCanvas');
+        const ctxISA = isaCanvas.getContext('2d');
+        
+        function resizeISA() {
+            const rect = isaCanvas.parentElement.getBoundingClientRect();
+            isaCanvas.width = rect.width;
+            isaCanvas.height = rect.height - 40;
+        }
+        window.addEventListener('resize', resizeISA);
+        resizeISA();
+
+        function selectISA(op) {
+            currentISA = op;
+            document.querySelectorAll('#gates button').forEach(b => {
+                b.classList.remove('active-isa-item');
+                b.classList.add('text-green-500');
+            });
+            const btn = document.getElementById('btn-' + op);
+            if(btn) {
+                btn.classList.add('active-isa-item');
+                btn.classList.remove('text-green-500');
+            }
+            
+            document.getElementById('visualizer-status').textContent = 'EXECUTING: ' + op;
+            
+            const formulas = {
+                'QHPRD': "H(p,q) = p \\times q",
+                'QCONJ': "C(q) = (a, -v)",
+                'QNORM': "N(q) = |q|^2",
+                'QUNIT': "U(q) = \\frac{q}{|q|}",
+                'QDOT': "D(p,q) = p \\cdot q",
+                'QPROJ': "P(q) = (q \\cdot u)u",
+                'QSPLIT': "S(q) \\to a \\mid v",
+                'QCROSS': "C(p,q) = p \\times q"
+            };
+            
+            const formula = formulas[op] || op;
+            if (window.katex) {
+                katex.render(formula, document.getElementById('formula-display'), { throwOnError: false });
+            }
+        }
+        setTimeout(() => selectISA('QHPRD'), 100);
+
+        function drawArrow(ctx, x1, y1, x2, y2, color, label) {
+            const headlen = 10;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headlen * Math.cos(angle - Math.PI / 6), y2 - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headlen * Math.cos(angle + Math.PI / 6), y2 - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.fill();
+            if(label) {
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px JetBrains Mono';
+                ctx.fillText(label, x2 + 10, y2);
+            }
+        }
+
+        function animateISA() {
+            ctxISA.clearRect(0, 0, isaCanvas.width, isaCanvas.height);
+            const w = isaCanvas.width;
+            const h = isaCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const t = Date.now() / 1000;
+
+            ctxISA.save();
+            ctxISA.translate(cx, cy);
+            ctxISA.scale(1.5, 1.5); 
+            ctxISA.translate(-cx, -cy);
+
+            // Grid
+            ctxISA.strokeStyle = '#14532d';
+            ctxISA.lineWidth = 1;
+            ctxISA.beginPath(); ctxISA.moveTo(0, cy); ctxISA.lineTo(w, cy); ctxISA.stroke();
+            ctxISA.beginPath(); ctxISA.moveTo(cx, 0); ctxISA.lineTo(cx, h); ctxISA.stroke();
+
+            // Colors: Green (#22c55e), Purple (#a855f7), Amber (#f59e0b)
+            const C_A = '#22c55e';
+            const C_B = '#a855f7';
+            const C_R = '#ffffff';
+            const C_S = '#f59e0b';
+
+            if (currentISA === 'QCONJ') {
+                const transition = Math.cos(t * 2);
+                drawArrow(ctxISA, cx, cy, cx + 100, cy - 100, '#333'); 
+                ctxISA.fillStyle = C_S; ctxISA.fillRect(cx - 10, cy - 150, 20, 100); 
+                drawArrow(ctxISA, cx, cy, cx + 100 * transition, cy - 50 * transition, C_B, transition>0?'v':'-v'); 
+            } 
+            else if (currentISA === 'QNORM') {
+                const cycle = (Math.sin(t * 3) + 1) / 2;
+                const vecLen = 100 * (1 - cycle);
+                drawArrow(ctxISA, cx, cy, cx + vecLen, cy - vecLen * 0.5, C_A);
+                drawArrow(ctxISA, cx, cy, cx - vecLen * 0.8, cy - vecLen * 0.8, C_A);
+                const barH = 150 * cycle;
+                ctxISA.fillStyle = C_S; ctxISA.fillRect(cx - 10, cy - barH, 20, barH);
+            }
+            else if (currentISA === 'QUNIT') {
+                ctxISA.strokeStyle = '#333'; ctxISA.setLineDash([5, 5]);
+                ctxISA.beginPath(); ctxISA.arc(cx, cy, 100, 0, Math.PI*2); ctxISA.stroke(); ctxISA.setLineDash([]);
+                const rawLen = 100 + Math.sin(t * 4) * 60;
+                const isNorm = Math.abs(rawLen - 100) < 5;
+                drawArrow(ctxISA, cx, cy, cx + rawLen * 0.707, cy - rawLen * 0.707, isNorm ? C_R : C_A);
+            }
+            else if (currentISA === 'QSPLIT') {
+                const d = (Math.sin(t*2)+1) * 60;
+                ctxISA.fillStyle = C_S; ctxISA.fillRect(cx - 10, cy - 100 - d, 20, 80); 
+                drawArrow(ctxISA, cx, cy, cx + 100 + d, cy + 50, C_A, 'v');
+            }
+            else if (currentISA === 'QHPRD') {
+                const r1 = t, r2 = t * 1.5;
+                const ax = Math.cos(r1)*80, ay = Math.sin(r1)*80;
+                const bx = Math.cos(r2)*80, by = Math.sin(r2)*80;
+                drawArrow(ctxISA, cx, cy, cx + ax, cy + ay, C_A, 'A');
+                drawArrow(ctxISA, cx, cy, cx + bx, cy + by, C_B, 'B');
+                drawArrow(ctxISA, cx, cy, cx + ax+bx, cy + ay+by, C_R, 'RES');
+            }
+            else if (currentISA === 'QDOT') {
+                const ax = 100, ay = 0;
+                const angle = t;
+                const bx = Math.cos(angle)*100, by = Math.sin(angle)*100;
+                drawArrow(ctxISA, cx, cy, cx + ax, cy + ay, C_A);
+                drawArrow(ctxISA, cx, cy, cx + bx, cy + by, C_B);
+                const dot = (ax*bx + ay*by)/100;
+                ctxISA.strokeStyle = C_S; ctxISA.setLineDash([2, 2]);
+                ctxISA.beginPath(); ctxISA.moveTo(cx + bx, cy + by); ctxISA.lineTo(cx + dot, cy); ctxISA.stroke(); ctxISA.setLineDash([]);
+                ctxISA.lineWidth = 5; ctxISA.beginPath(); ctxISA.moveTo(cx, cy + 10); ctxISA.lineTo(cx + dot, cy + 10); ctxISA.stroke();
+                ctxISA.fillStyle = C_S; ctxISA.fillText("Scalar", cx + dot/2 - 10, cy + 25);
+            }
+            else if (currentISA === 'QCROSS') {
+                const angle = t;
+                const ax = Math.cos(angle)*80, ay = Math.sin(angle)*80;
+                const bx = 80, by = 0; 
+                const ortho = Math.abs(Math.sin(angle));
+                if(ortho > 0.1) {
+                    drawArrow(ctxISA, cx, cy, cx + ortho*50, cy - ortho*50, '#ef4444', 'X');
+                }
+                drawArrow(ctxISA, cx, cy, cx+ax, cy+ay, C_A, 'A');
+                drawArrow(ctxISA, cx, cy, cx+bx, cy+by, C_B, 'B');
+            }
+            else if (currentISA === 'QPROJ') {
+                const angle = Math.sin(t)*1.5;
+                const vx = Math.cos(angle)*100, vy = Math.sin(angle)*100;
+                
+                ctxISA.strokeStyle = '#333'; ctxISA.lineWidth=1; ctxISA.setLineDash([5,5]);
+                ctxISA.beginPath(); ctxISA.moveTo(cx-150, cy); ctxISA.lineTo(cx+150, cy); ctxISA.stroke(); ctxISA.setLineDash([]);
+                
+                drawArrow(ctxISA, cx, cy, cx+vx, cy+vy, C_A, 'v');
+                drawArrow(ctxISA, cx, cy, cx+vx, cy, C_B, 'proj');
+                ctxISA.strokeStyle = '#fff'; ctxISA.lineWidth=1;
+                ctxISA.beginPath(); ctxISA.moveTo(cx+vx, cy+vy); ctxISA.lineTo(cx+vx, cy); ctxISA.stroke();
+            }
+
+            ctxISA.restore();
+            requestAnimationFrame(animateISA);
+        }
+        animateISA();
+    </script>
+</body>
+</html>
