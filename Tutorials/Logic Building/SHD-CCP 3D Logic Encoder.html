@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHD-CCP 3D Logic Encoder</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #020205; font-family: 'Courier New', Courier, monospace; color: #0f0; user-select: none; }
+        
+        /* UI Layers */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.4); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; mix-blend-mode: exclusion; z-index: 10;
+        }
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+        }
+        
+        /* Top Status Bar */
+        #top-bar {
+            position: absolute; top: 0; left: 0; width: 100%; height: 45px;
+            background: rgba(0, 5, 0, 0.95); border-bottom: 1px solid #0f0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; pointer-events: auto; box-sizing: border-box; z-index: 5;
+        }
+        .header-title { font-weight: bold; letter-spacing: 2px; color: #fff; text-shadow: 0 0 5px #0f0; }
+        
+        /* Inject Controls */
+        .injector-panel { display: flex; align-items: center; gap: 15px; }
+        .pulse-btn {
+            background: #000; color: #0f0; border: 1px solid #0f0; padding: 6px 15px;
+            font-family: inherit; font-weight: bold; cursor: pointer; transition: 0.2s;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2); display: flex; align-items: center; gap: 5px;
+        }
+        .pulse-btn:hover { background: #0f0; color: #000; box-shadow: 0 0 20px #0f0; }
+        .pulse-btn:active { transform: scale(0.98); }
+        .pulse-indicator { width: 8px; height: 8px; background: #000; border: 1px solid #0f0; border-radius: 50%; }
+        .pulse-indicator.active { background: #0f0; box-shadow: 0 0 10px #0f0; }
+
+        /* Floating Codex (3D Overlay) */
+        #floating-codex {
+            position: absolute; pointer-events: none; display: none;
+            width: 220px; padding: 10px;
+            background: rgba(0, 10, 0, 0.85); border: 1px solid #0f0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+            color: #fff; font-size: 11px; z-index: 2;
+            transform: translate(-50%, -100%); margin-top: -25px;
+            backdrop-filter: blur(2px);
+        }
+        #floating-codex .header { border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 5px; font-weight: bold; color: #0f0; display: flex; justify-content: space-between;}
+        #floating-codex .content { color: #ccc; font-style: italic; word-wrap: break-word; }
+        #floating-codex .meta { margin-top: 5px; font-size: 9px; color: #888; text-align: right; }
+        
+        /* Inspector & Editor */
+        #packet-editor {
+            position: absolute; top: 60px; right: 10px; width: 300px;
+            background: rgba(0, 15, 0, 0.9); border: 1px solid #0f0; padding: 10px;
+            pointer-events: auto; font-size: 11px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+        }
+        #packet-editor h3 { margin: 0 0 10px 0; text-align: center; border-bottom: 1px solid #0f0; padding-bottom: 5px; color: #fff; }
+        .control-group { margin-bottom: 6px; border-left: 2px solid #0f0; padding-left: 5px; }
+        .control-group label { display: block; color: #8f8; margin-bottom: 2px;}
+        .control-group input[type=range] { width: 100%; accent-color: #0f0; height: 5px; cursor: pointer; }
+        .value-display { float: right; color: #fff; }
+        
+        #hud-inspector {
+            position: absolute; bottom: 10px; left: 10px;
+            background: rgba(0, 0, 0, 0.8); border: 1px solid #0f0; padding: 10px;
+            font-size: 12px; max-width: 400px; pointer-events: none;
+        }
+        #hex-readout { font-size: 18px; font-weight: bold; color: #fff; letter-spacing: 1px; font-family: monospace; }
+        
+        #physics-log {
+            position: absolute; bottom: 10px; right: 10px; width: 300px; height: 150px;
+            background: rgba(0,0,0,0.8); border: 1px solid #444; color: #aaa;
+            font-size: 10px; padding: 5px; overflow-y: auto; pointer-events: none;
+            font-family: monospace;
+        }
+        .log-entry { margin-bottom: 2px; border-bottom: 1px solid #222; }
+        .log-res { color: #ff0; }
+        .log-tun { color: #0ff; }
+        .log-rej { color: #f00; }
+
+        /* Modal */
+        #confirm-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #000; border: 2px solid #0f0; padding: 2px;
+            width: 450px; z-index: 50; display: none; pointer-events: auto;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+        }
+        .modal-header { background: #0f0; color: #000; padding: 5px 10px; font-weight: bold; display:flex; justify-content:space-between; }
+        .modal-body { padding: 15px; color: #fff; font-size: 12px; line-height: 1.4; display: flex; flex-direction: column; gap: 10px; }
+        .modal-footer { padding: 10px; display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid #333; }
+        .modal-btn { 
+            background: transparent; border: 1px solid #0f0; color: #0f0; 
+            padding: 8px 10px; cursor: pointer; font-family: inherit; font-weight: bold; font-size: 11px;
+            transition: all 0.2s; flex: 1; display: none;
+        }
+        .modal-btn:hover { background: #0f0; color: #000; }
+        .modal-btn.visible { display: block; }
+        .modal-btn.cancel { border-color: #f00; color: #f00; }
+        .modal-btn.cancel:hover { background: #f00; color: #fff; }
+        .modal-btn.neutral { border-color: #888; color: #888; display: block; }
+        .modal-btn.neutral:hover { background: #888; color: #000; }
+        .codex-input { width: 100%; background: #111; border: 1px solid #0f0; color: #0f0; padding: 5px; box-sizing: border-box; resize: vertical; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="crosshair"></div>
+
+<!-- Physics Log -->
+<div id="physics-log">
+    <div style="color:#fff; border-bottom:1px solid #fff;">SEMANTIC INTERFEROMETER LOG</div>
+</div>
+
+<!-- Floating Codex Label -->
+<div id="floating-codex">
+    <div class="header">
+        <span id="fc-coords">0,0,0</span>
+        <span id="fc-branch" style="color:#ff0; font-size:9px;"></span>
+    </div>
+    <div id="fc-content" class="content">Genesis Block</div>
+    <div class="meta">LATTICE NODE</div>
+</div>
+
+<!-- Interaction Modal -->
+<div id="confirm-modal">
+    <div class="modal-header">
+        <span>NODE INTERACTION PROTOCOL</span>
+        <span id="modal-mode">[MODE]</span>
+    </div>
+    <div class="modal-body">
+        <div>
+            <div style="display:flex; justify-content:space-between; color:#888;">
+                <span>TARGET NODE:</span> <span id="modal-coords" style="color:#0ff">0, 0, 0</span>
+            </div>
+        </div>
+        <!-- Codex Entry -->
+        <div>
+            <div style="color:#888; font-weight:bold; margin-bottom:5px;">PARALLEL CODEX ENTRY</div>
+            <textarea id="modal-codex-input" class="codex-input" placeholder="Enter symbolic string data..."></textarea>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button id="btn-deconstruct" class="modal-btn cancel" onclick="confirmDestruction()">DECONSTRUCT</button>
+        <button class="modal-btn neutral" onclick="closeModalAction()">CANCEL</button>
+        <button id="btn-rewrite" class="modal-btn" onclick="confirmRewrite()">REWRITE DATA</button>
+        <button id="btn-link" class="modal-btn" onclick="confirmPlacement()">ESTABLISH LINK</button>
+    </div>
+</div>
+
+<div id="ui-layer">
+    <!-- TOP STATUS BAR -->
+    <div id="top-bar">
+        <div class="header-title">SHD-CCP 3D LOGIC ENCODER</div>
+        
+        <div class="injector-panel">
+            <span style="font-size:10px; color:#888;">INJECT PHOTON:</span>
+            <button class="pulse-btn" onclick="initiateSignalPulse()">
+                <div id="pulse-indicator" class="pulse-indicator"></div>
+                INJECT PACKET
+            </button>
+        </div>
+    </div>
+
+    <!-- EDITOR PANEL -->
+    <div id="packet-editor">
+        <h3>PACKET COMPOSER (PHOTON)</h3>
+        
+        <!-- 63-48 Payload Scaler -->
+        <div class="control-group">
+            <label>Confidence (Scaler) <span id="val-scaler" class="value-display">15360</span></label>
+            <input type="range" id="in-scaler" min="0" max="65535" step="1" value="15360">
+        </div>
+
+        <!-- 47-40 Dynamics -->
+        <div class="control-group">
+            <label>Phase (Freq ID) <span id="val-freq" class="value-display">0</span></label>
+            <input type="range" id="in-freq" min="0" max="31" step="1" value="0">
+        </div>
+        <div class="control-group">
+            <label>Spin Routing (Spin ID) <span id="val-spin" class="value-display">0</span></label>
+            <input type="range" id="in-spin" min="0" max="7" step="1" value="0">
+        </div>
+
+        <!-- 39-32 State & ID -->
+        <div class="control-group">
+            <label>Grammar (Form ID) <span id="val-form" class="value-display">0</span></label>
+            <input type="range" id="in-form" min="0" max="15" step="1" value="0">
+        </div>
+        <div class="control-group">
+            <label>Attention (Amp ID) <span id="val-amp" class="value-display">7</span></label>
+            <input type="range" id="in-amp" min="0" max="7" step="1" value="7">
+        </div>
+
+        <!-- 31-0 Quaternion -->
+        <div class="control-group">
+            <label>Meaning (Quaternion) <span class="value-display" style="font-size:9px;">[W,X,Y,Z]</span></label>
+            <input type="range" id="in-qw" min="0" max="255" step="1" value="255">
+            <input type="range" id="in-qx" min="0" max="255" step="1" value="127">
+            <input type="range" id="in-qy" min="0" max="255" step="1" value="127">
+            <input type="range" id="in-qz" min="0" max="255" step="1" value="127">
+        </div>
+    </div>
+
+    <!-- HUD INSPECTOR -->
+    <div id="hud-inspector">
+        <div style="color:#888; font-size:10px; margin-bottom:5px;">LATTICE NODE DATA</div>
+        <div id="hex-readout">0x0000000000000000</div>
+        <div id="bin-readout" style="font-family:monospace; font-size:10px; word-break:break-all; color:#0f0;"></div>
+        <hr style="border-color:#333;">
+        <div id="target-details">
+            Waiting for target...
+        </div>
+    </div>
+</div>
+
+<!-- Three.js Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- PointerLockControls -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+<script>
+/**
+ * SHD-CCP PROTOCOL
+ */
+class SHDPacket {
+    constructor() { this.data = 0n; }
+    setScaler(val) { this.data = (this.data & ~(0xFFFFn << 48n)) | (BigInt(val & 0xFFFF) << 48n); }
+    setDynamics(freq, spin) { const dyn = ((freq & 0x1F) << 3) | (spin & 0x7); this.data = (this.data & ~(0xFFn << 40n)) | (BigInt(dyn) << 40n); }
+    setState(form, amp) { const state = ((form & 0xF) << 4) | ((amp & 0x7) << 1); this.data = (this.data & ~(0xFFn << 32n)) | (BigInt(state) << 32n); }
+    setQuaternion(w, x, y, z) {
+        let q = (BigInt(w & 0xFF) << 24n) | (BigInt(x & 0xFF) << 16n) | (BigInt(y & 0xFF) << 8n) | BigInt(z & 0xFF);
+        this.data = (this.data & 0xFFFFFFFF00000000n) | q;
+    }
+    setFromBigInt(val) { this.data = val; }
+    getScaler() { return Number((this.data >> 48n) & 0xFFFFn); }
+    getFreq() { return Number((this.data >> 43n) & 0x1Fn); }
+    getSpin() { return Number((this.data >> 40n) & 0x07n); }
+    getForm() { return Number((this.data >> 36n) & 0x0Fn); }
+    getAmp() { return Number((this.data >> 33n) & 0x07n); }
+    getQW() { return Number((this.data >> 24n) & 0xFFn); }
+    getQX() { return Number((this.data >> 16n) & 0xFFn); }
+    getQY() { return Number((this.data >> 8n) & 0xFFn); }
+    getQZ() { return Number(this.data & 0xFFn); }
+    toHex() { return "0x" + this.data.toString(16).padStart(16, '0').toUpperCase(); }
+    toBin() { return this.data.toString(2).padStart(64, '0'); }
+}
+
+// --- SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050505);
+scene.fog = new THREE.FogExp2(0x050505, 0.03);
+
+const gridHelper = new THREE.GridHelper(100, 100, 0x112211, 0x050510);
+scene.add(gridHelper);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const ambientLight = new THREE.AmbientLight(0x404040);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(20, 50, 20);
+scene.add(dirLight);
+
+const selectionGeo = new THREE.BoxGeometry(1.05, 1.05, 1.05);
+const selectionMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, transparent: true, opacity: 0.6 });
+const selectionMesh = new THREE.Mesh(selectionGeo, selectionMat);
+scene.add(selectionMesh);
+selectionMesh.visible = false;
+
+// GAME STATE
+const voxelMap = new Map();
+const voxelMeta = new Map(); // { text: "", parent: "x,y,z", children: [] }
+const objects = []; 
+const geometryMap = new Map();
+const edgesMap = new Map();
+
+// --- HELPERS ---
+function mapFP8ToFloat(bits) { return ((bits / 255) * 2.0) - 1.0; }
+function getPhaseColor(id) {
+    return new THREE.Color().setHSL(id / 31.0, 1.0, 0.5);
+}
+
+const formNames = [
+    "Tetrahedron (Axiom)", "Cube (Data)", "Octahedron (Net)", "Icosahedron (Poly)", 
+    "Dodecahedron (Hier)", "Trunc. Tet (Cond)", "Cuboctahedron (Dyn)", "Buckyball (Pkt)",
+    "Rhombicub. (Sci)", "Icosidodec. (Nar)", "Trunc. Cuboct. (Max)", "Snub Cube (Bias)", "Snub Dodec. (Para)",
+    "Cosmoed (Wave)", "Null", "Null"
+];
+
+const spinRules = [
+    "Omni-directional", // 0
+    "Planar (Y=0)",     // 1
+    "Ascending (+Y)",   // 2
+    "Descending (-Y)",  // 3
+    "Expansion (+XZ)",  // 4
+    "Contraction (-XZ)",// 5
+    "Spiral A (Right)", // 6
+    "Spiral B (Left)"   // 7
+];
+
+function getGeometry(formId) {
+    if (!geometryMap.has(formId)) {
+        let geo;
+        const s = 0.5; 
+        switch(formId) {
+            case 0: geo = new THREE.TetrahedronGeometry(s); break; 
+            case 1: geo = new THREE.BoxGeometry(0.8, 0.8, 0.8); break; 
+            case 2: geo = new THREE.OctahedronGeometry(s); break; 
+            case 3: geo = new THREE.IcosahedronGeometry(s, 0); break; 
+            case 4: geo = new THREE.DodecahedronGeometry(s, 0); break; 
+            case 5: geo = new THREE.TetrahedronGeometry(s, 1); break; 
+            case 6: geo = new THREE.OctahedronGeometry(s, 1); break; 
+            case 7: geo = new THREE.IcosahedronGeometry(s, 1); break; 
+            case 8: geo = new THREE.DodecahedronGeometry(s, 1); break; 
+            case 9: geo = new THREE.IcosahedronGeometry(s, 2); break; 
+            case 10: geo = new THREE.SphereGeometry(s, 12, 12); break; 
+            case 11: geo = new THREE.TorusKnotGeometry(0.25, 0.05, 64, 8, 2, 3); break; 
+            case 12: geo = new THREE.TorusKnotGeometry(0.25, 0.1, 40, 10, 3, 5); break; 
+            case 13: geo = new THREE.TorusKnotGeometry(0.25, 0.1, 100, 16, 5, 7); break; 
+            case 14: case 15: geo = null; break;
+            default: geo = new THREE.BoxGeometry(0.5, 0.5, 0.5); break;
+        }
+        geometryMap.set(formId, geo);
+    }
+    return geometryMap.get(formId);
+}
+
+function getEdgesGeometry(formId) {
+    if (!edgesMap.has(formId)) {
+        const geo = getGeometry(formId);
+        if(!geo) {
+            edgesMap.set(formId, null);
+        } else {
+            const edges = new THREE.EdgesGeometry(geo);
+            edgesMap.set(formId, edges);
+        }
+    }
+    return edgesMap.get(formId);
+}
+
+function createVoxelMesh(packet, x, y, z) {
+    const p = new SHDPacket();
+    p.setFromBigInt(packet);
+    
+    const freq = p.getFreq(); 
+    const spin = p.getSpin();
+    const scaler = p.getScaler();
+    const form = p.getForm();
+    const amp = p.getAmp();
+
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+
+    // CORE
+    const coreColor = getPhaseColor(freq);
+    const coreGeo = new THREE.SphereGeometry(0.15, 16, 16);
+    const baseIntensity = 0.5 + (scaler/65535);
+    const coreMat = new THREE.MeshStandardMaterial({
+        color: coreColor,
+        emissive: coreColor,
+        emissiveIntensity: baseIntensity,
+        roughness: 0.1,
+        metalness: 0.9
+    });
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    // Physics State stored in mesh userData
+    coreMesh.userData = { 
+        baseIntensity: baseIntensity, 
+        baseColor: coreColor.clone(),
+        pulseMode: 'NONE', // NONE, RESONATE, TUNNEL, REJECT
+        pulseTimer: 0 
+    };
+    
+    // POINTER
+    const pointerGeo = new THREE.ConeGeometry(0.05, 0.4, 8);
+    pointerGeo.translate(0, 0.2, 0); 
+    pointerGeo.rotateX(Math.PI / 2); 
+    const pointerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const pointerMesh = new THREE.Mesh(pointerGeo, pointerMat);
+    
+    const pivot = new THREE.Group();
+    pivot.add(coreMesh); 
+    pivot.add(pointerMesh); 
+    group.add(pivot);
+
+    const q = new THREE.Quaternion(
+        mapFP8ToFloat(p.getQX()),
+        mapFP8ToFloat(p.getQY()),
+        mapFP8ToFloat(p.getQZ()),
+        mapFP8ToFloat(p.getQW())
+    ).normalize();
+    pivot.setRotationFromQuaternion(q);
+
+    // SHELL
+    const shellGeo = getEdgesGeometry(form);
+    if (shellGeo) {
+        const shellMat = new THREE.LineBasicMaterial({ 
+            color: 0xffffff, 
+            transparent: true, 
+            opacity: 0.3 + (amp/14.0) 
+        });
+        const shellMesh = new THREE.LineSegments(shellGeo, shellMat);
+        group.add(shellMesh);
+    }
+
+    // GENESIS MARKER
+    if (x===0 && y===0 && z===0) {
+        const genGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+        const genMat = new THREE.MeshBasicMaterial({ color: 0xffd700, wireframe: true });
+        const genMesh = new THREE.Mesh(genGeo, genMat);
+        group.add(genMesh);
+    }
+
+    // Hitbox
+    const hitBox = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({visible:false}));
+    hitBox.userData = { isVoxel: true, packet: packet, gridPos: {x,y,z}, parentGroup: group, coreMesh: coreMesh };
+    group.add(hitBox);
+    
+    scene.add(group);
+    objects.push(hitBox);
+    return hitBox;
+}
+
+// --- INITIALIZATION ---
+function initGenesis() {
+    const p = new SHDPacket();
+    p.setScaler(65535); 
+    p.setDynamics(15, 7); 
+    p.setState(4, 7); 
+    p.setQuaternion(255, 127, 127, 127); 
+
+    const key = `0,0,0`;
+    voxelMap.set(key, p.data);
+    voxelMeta.set(key, { text: "GENESIS BLOCK", parent: null, children: [] });
+
+    createVoxelMesh(p.data, 0, 0, 0);
+    
+    const light = new THREE.PointLight(0xffffff, 1, 10);
+    light.position.set(0, 0, 0);
+    scene.add(light);
+}
+
+initGenesis();
+
+// --- PHYSICS ENGINE (THE SEMANTIC INTERFEROMETER) ---
+const pulseIndicator = document.getElementById('pulse-indicator');
+const physicsLog = document.getElementById('physics-log');
+
+function logPhysics(msg, type) {
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    if(type === 'res') div.classList.add('log-res');
+    if(type === 'tun') div.classList.add('log-tun');
+    if(type === 'rej') div.classList.add('log-rej');
+    div.innerText = msg;
+    physicsLog.prepend(div);
+    if(physicsLog.children.length > 20) physicsLog.lastChild.remove();
+}
+
+// Construct the "Photon" from UI settings
+function getPhotonPacket() {
+    const p = new SHDPacket();
+    p.setScaler(parseInt(document.getElementById('in-scaler').value));
+    p.setDynamics(
+        parseInt(document.getElementById('in-freq').value),
+        parseInt(document.getElementById('in-spin').value)
+    );
+    p.setState(
+        parseInt(document.getElementById('in-form').value),
+        parseInt(document.getElementById('in-amp').value)
+    );
+    return p;
+}
+
+let pulseQueue = []; 
+
+function initiateSignalPulse() {
+    const photon = getPhotonPacket();
+    pulseIndicator.classList.add('active');
+    logPhysics(`>>> SIGNAL INJECTION: Phase ${photon.getFreq()} | Spin ${photon.getSpin()}`, 'res');
+    
+    // Inject into Genesis
+    pulseQueue = [{ key: "0,0,0", photon: photon, depth: 0 }];
+    processPulseStep();
+}
+
+function checkSpinRouting(photonSpin, currentPos, nextPos) {
+    const dx = nextPos.x - currentPos.x;
+    const dy = nextPos.y - currentPos.y;
+    const dz = nextPos.z - currentPos.z;
+
+    // Spin Logic Rules
+    switch(photonSpin) {
+        case 0: return true; // Omni
+        case 1: return dy === 0; // Planar (No up/down)
+        case 2: return dy > 0; // Ascending
+        case 3: return dy < 0; // Descending
+        case 4: return (dx !== 0 || dz !== 0); // Expansion (Horizontal only)
+        case 5: return (dx === 0 && dz === 0); // Vertical only
+        // Complex Spirals (Simplified for Grid)
+        case 6: return dx > 0 || dy > 0; // Right/Up bias
+        case 7: return dx < 0 || dy > 0; // Left/Up bias
+        default: return true;
+    }
+}
+
+function checkGrammar(photonForm, nodeForm) {
+    // Constructive Interference Rule (Parity Match)
+    return (photonForm % 2) === (nodeForm % 2); 
+}
+
+function processPulseStep() {
+    const nextQueue = [];
+    
+    pulseQueue.forEach(item => {
+        const { key, photon, depth } = item;
+        
+        // Get Node Data
+        const packetInt = voxelMap.get(key);
+        if(!packetInt) return;
+        
+        const nodePacket = new SHDPacket();
+        nodePacket.setFromBigInt(packetInt);
+        
+        const coords = key.split(',').map(Number);
+        const obj = objects.find(o => 
+            o.userData.gridPos.x === coords[0] &&
+            o.userData.gridPos.y === coords[1] &&
+            o.userData.gridPos.z === coords[2]
+        );
+        
+        if(!obj) return;
+        const core = obj.userData.coreMesh;
+
+        // 1. HARMONIC MULTIPLEXING (Freq Check)
+        const isResonant = (photon.getFreq() === nodePacket.getFreq());
+        
+        if (isResonant) {
+            // 2. GRAMMAR CHECK (Constructive Interference)
+            if (checkGrammar(photon.getForm(), nodePacket.getForm())) {
+                // RESONANCE!
+                core.userData.pulseMode = 'RESONATE';
+                core.userData.pulseTimer = 1.0;
+                logPhysics(`[${key}] RESONANCE (Phase Match)`, 'res');
+            } else {
+                // GRAMMAR REJECTION (Bounce)
+                core.userData.pulseMode = 'REJECT';
+                core.userData.pulseTimer = 1.0;
+                logPhysics(`[${key}] REJECT (Grammar Clash)`, 'rej');
+                return; // Stop Propagation
+            }
+        } else {
+            // TUNNELING (Phase Mismatch)
+            core.userData.pulseMode = 'TUNNEL';
+            core.userData.pulseTimer = 0.5; // Faster flash
+            // logPhysics(`[${key}] TUNNELING (Phase Mismatch)`, 'tun'); // Too spammy?
+        }
+
+        // 3. PROPAGATION (Routing)
+        const meta = voxelMeta.get(key);
+        if(meta && meta.children) {
+            meta.children.forEach(childKey => {
+                const cCoords = childKey.split(',').map(Number);
+                const currentPos = {x: coords[0], y: coords[1], z: coords[2]};
+                const nextPos = {x: cCoords[0], y: cCoords[1], z: cCoords[2]};
+
+                // Apply Spin Routing Rule
+                if (checkSpinRouting(photon.getSpin(), currentPos, nextPos)) {
+                    nextQueue.push({ key: childKey, photon: photon, depth: depth + 1 });
+                } else {
+                    // Signal blocked by chirality
+                }
+            });
+        }
+    });
+
+    if(nextQueue.length > 0) {
+        pulseQueue = nextQueue;
+        // Amp affects speed (higher amp = faster)
+        const speed = 200 - (pulseQueue[0].photon.getAmp() * 20); 
+        setTimeout(processPulseStep, speed);
+    } else {
+        pulseIndicator.classList.remove('active');
+        logPhysics(">>> SIGNAL DISSIPATED", 'tun');
+    }
+}
+
+// --- TRAVERSAL & UI LOGIC ---
+const floatingCodex = document.getElementById('floating-codex');
+const fcCoords = document.getElementById('fc-coords');
+const fcContent = document.getElementById('fc-content');
+const fcBranch = document.getElementById('fc-branch');
+let focusedNodeKey = null;
+let focusedNodeObj = null;
+let branchIndex = 0;
+
+function updateFocus(key) {
+    if(!voxelMap.has(key)) return;
+    const coords = key.split(',').map(Number);
+    const targetObj = objects.find(o => 
+        o.userData.gridPos.x === coords[0] &&
+        o.userData.gridPos.y === coords[1] &&
+        o.userData.gridPos.z === coords[2]
+    );
+    if(targetObj) {
+        focusedNodeKey = key;
+        focusedNodeObj = targetObj;
+        branchIndex = 0;
+        updateFloatingCodex();
+    }
+}
+
+function updateFloatingCodex() {
+    if(!focusedNodeKey) return;
+    const meta = voxelMeta.get(focusedNodeKey);
+    fcCoords.innerText = focusedNodeKey;
+    fcContent.innerText = meta ? (meta.text || "[No Data]") : "NULL";
+    if(meta && meta.children.length > 1) {
+        fcBranch.innerText = `Branch ${branchIndex+1}/${meta.children.length}`;
+        fcBranch.style.display = 'block';
+    } else { fcBranch.style.display = 'none'; }
+}
+
+// Modal Logic
+const confirmModal = document.getElementById('confirm-modal');
+const modalCoords = document.getElementById('modal-coords');
+const modalCodex = document.getElementById('modal-codex-input');
+const btnDeconstruct = document.getElementById('btn-deconstruct');
+const btnLink = document.getElementById('btn-link');
+const btnRewrite = document.getElementById('btn-rewrite');
+let pendingPlace = null, pendingDestroy = null, pendingRewrite = null, isModifyMode = false;
+
+document.addEventListener('contextmenu', event => event.preventDefault());
+
+function openInteractionModal(targetObj, gridX, gridY, gridZ, mode) {
+    document.exitPointerLock();
+    
+    // Use Editor settings for new packets
+    const newP = getPhotonPacket(); // Reuse photon getter for new block data
+
+    const sourcePos = targetObj.userData.gridPos;
+    const sourceKey = `${sourcePos.x},${sourcePos.y},${sourcePos.z}`;
+    const sourceMeta = voxelMeta.get(sourceKey) || { text: "", parent: null, children: [] };
+
+    btnDeconstruct.classList.remove('visible');
+    btnLink.classList.remove('visible');
+    btnRewrite.classList.remove('visible');
+    pendingDestroy = targetObj.userData.parentGroup;
+
+    if (mode === 'MODIFY') {
+        modalCoords.innerText = sourceKey;
+        btnRewrite.classList.add('visible');
+        btnDeconstruct.classList.add('visible');
+        modalCodex.value = sourceMeta.text;
+        pendingRewrite = { x: sourcePos.x, y: sourcePos.y, z: sourcePos.z, packet: newP.data, targetObj: targetObj, key: sourceKey };
+    } else {
+        const newKey = `${gridX},${gridY},${gridZ}`;
+        modalCoords.innerText = `${sourceKey} -> ${newKey}`;
+        btnLink.classList.add('visible');
+        btnDeconstruct.classList.add('visible');
+        modalCodex.value = "";
+        pendingPlace = { x: gridX, y: gridY, z: gridZ, packet: newP.data, parentKey: sourceKey };
+    }
+
+    if (sourcePos.x === 0 && sourcePos.y === 0 && sourcePos.z === 0) {
+        btnDeconstruct.disabled = true;
+        btnDeconstruct.innerText = "LOCKED";
+    } else {
+        btnDeconstruct.disabled = false;
+        btnDeconstruct.innerText = "DECONSTRUCT";
+    }
+    confirmModal.style.display = 'block';
+}
+
+function confirmPlacement() {
+    if(pendingPlace) {
+        const key = `${pendingPlace.x},${pendingPlace.y},${pendingPlace.z}`;
+        if(!voxelMap.has(key)) {
+            voxelMap.set(key, pendingPlace.packet);
+            voxelMeta.set(key, { text: modalCodex.value, parent: pendingPlace.parentKey, children: [] });
+            const parentMeta = voxelMeta.get(pendingPlace.parentKey);
+            if(parentMeta) parentMeta.children.push(key);
+            createVoxelMesh(pendingPlace.packet, pendingPlace.x, pendingPlace.y, pendingPlace.z);
+        }
+    }
+    closeModalAction();
+}
+
+function confirmRewrite() {
+    if(pendingRewrite) {
+        const meta = voxelMeta.get(pendingRewrite.key);
+        if(meta) meta.text = modalCodex.value;
+        const hitBox = pendingRewrite.targetObj;
+        const group = hitBox.userData.parentGroup;
+        scene.remove(group);
+        objects.splice(objects.indexOf(hitBox), 1);
+        voxelMap.set(pendingRewrite.key, pendingRewrite.packet);
+        createVoxelMesh(pendingRewrite.packet, pendingRewrite.x, pendingRewrite.y, pendingRewrite.z);
+    }
+    closeModalAction();
+}
+
+function confirmDestruction() {
+    if(pendingDestroy) {
+        const hitBox = pendingDestroy.children.find(c => c.userData.isVoxel);
+        const gp = hitBox.userData.gridPos;
+        if(gp.x === 0 && gp.y === 0 && gp.z === 0) return;
+        scene.remove(pendingDestroy);
+        objects.splice(objects.indexOf(hitBox), 1);
+        voxelMap.delete(`${gp.x},${gp.y},${gp.z}`);
+    }
+    closeModalAction();
+}
+
+function closeModalAction() {
+    confirmModal.style.display = 'none';
+    pendingPlace = null; pendingDestroy = null; pendingRewrite = null;
+    controls.lock();
+}
+
+// --- ANIMATION & INPUT ---
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, moveUp = false, moveDown = false;
+let isLocked = false;
+
+const controls = new THREE.PointerLockControls(camera, document.body);
+const instructions = document.getElementById('instructions');
+const packetEditor = document.getElementById('packet-editor');
+const topBar = document.getElementById('top-bar');
+
+document.addEventListener('mousedown', (e) => {
+    const path = e.composedPath();
+    if(path.includes(confirmModal) || path.includes(packetEditor) || path.includes(topBar)) return;
+    if (e.button === 2) isModifyMode = true;
+    if(isLocked) {
+        if (e.button === 0) onGameClick(e);
+    } else {
+        if(!path.includes(confirmModal) && e.button === 0) controls.lock();
+    }
+});
+document.addEventListener('mouseup', (e) => { if (e.button === 2) isModifyMode = false; });
+
+controls.addEventListener('lock', () => {
+    if(instructions) instructions.style.display = 'none';
+    if(confirmModal) confirmModal.style.display = 'none';
+    if(floatingCodex) floatingCodex.style.display = 'block';
+    if(packetEditor) { packetEditor.style.pointerEvents = 'none'; packetEditor.style.opacity = '0.5'; }
+    if(topBar) topBar.style.opacity = '0.5';
+    isLocked = true;
+});
+controls.addEventListener('unlock', () => {
+    if(packetEditor) { packetEditor.style.pointerEvents = 'auto'; packetEditor.style.opacity = '1'; }
+    if(topBar) topBar.style.opacity = '1';
+    if(floatingCodex) floatingCodex.style.display = 'none';
+    isLocked = false; isModifyMode = false;
+});
+
+// Movement & Traversal Keys
+document.addEventListener('keydown', (event) => {
+    switch (event.code) {
+        case 'KeyW': moveForward = true; break;
+        case 'KeyA': moveLeft = true; break;
+        case 'KeyS': moveBackward = true; break;
+        case 'KeyD': moveRight = true; break;
+        case 'Space': moveUp = true; break;
+        case 'ShiftLeft': moveDown = true; break;
+        case 'KeyE': if(isLocked) controls.unlock(); else controls.lock(); break;
+        case 'ArrowLeft': 
+            if(isLocked && focusedNodeKey) {
+                const meta = voxelMeta.get(focusedNodeKey);
+                if(meta && meta.parent) updateFocus(meta.parent);
+            } break;
+        case 'ArrowRight': 
+            if(isLocked && focusedNodeKey) {
+                const meta = voxelMeta.get(focusedNodeKey);
+                if(meta && meta.children.length > 0) updateFocus(meta.children[branchIndex % meta.children.length]);
+            } break;
+        case 'ArrowUp': 
+             if(isLocked && focusedNodeKey) {
+                 const meta = voxelMeta.get(focusedNodeKey);
+                 if(meta && meta.children.length > 1) { branchIndex = (branchIndex + 1) % meta.children.length; updateFloatingCodex(); }
+             } break;
+        case 'ArrowDown': 
+             if(isLocked && focusedNodeKey) {
+                 const meta = voxelMeta.get(focusedNodeKey);
+                 if(meta && meta.children.length > 1) { branchIndex = (branchIndex - 1 + meta.children.length) % meta.children.length; updateFloatingCodex(); }
+             } break;
+    }
+});
+document.addEventListener('keyup', (event) => {
+    switch (event.code) {
+        case 'KeyW': moveForward = false; break;
+        case 'KeyA': moveLeft = false; break;
+        case 'KeyS': moveBackward = false; break;
+        case 'KeyD': moveRight = false; break;
+        case 'Space': moveUp = false; break;
+        case 'ShiftLeft': moveDown = false; break;
+    }
+});
+
+// Game Loop
+const raycaster = new THREE.Raycaster();
+const focusTargetVec = new THREE.Vector3();
+let prevTime = performance.now();
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+
+function onGameClick(event) {
+    raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+    const intersects = raycaster.intersectObjects(objects);
+    if (intersects.length > 0) {
+        const intersect = intersects[0];
+        const obj = intersect.object; 
+        if (event.button === 0) {
+             const gp = obj.userData.gridPos;
+             updateFocus(`${gp.x},${gp.y},${gp.z}`);
+             if (isModifyMode) openInteractionModal(obj, gp.x, gp.y, gp.z, 'MODIFY');
+             else {
+                 const n = intersect.face.normal;
+                 const p = intersect.point.clone().add(n.clone().multiplyScalar(0.5));
+                 openInteractionModal(obj, Math.round(p.x), Math.round(p.y), Math.round(p.z), 'PLACE');
+             }
+        }
+    }
+}
+
+function updateLabels() {
+    document.getElementById('val-scaler').innerText = document.getElementById('in-scaler').value;
+    document.getElementById('val-freq').innerText = document.getElementById('in-freq').value;
+    document.getElementById('val-spin').innerText = document.getElementById('in-spin').value;
+    const fId = parseInt(document.getElementById('in-form').value);
+    document.getElementById('val-form').innerText = `${fId} (${formNames[fId]||'?'})`;
+    document.getElementById('val-amp').innerText = document.getElementById('in-amp').value;
+}
+const inputs = document.querySelectorAll('input[type=range]');
+inputs.forEach(input => input.addEventListener('input', updateLabels));
+
+function animate() {
+    requestAnimationFrame(animate);
+    const time = performance.now();
+    const delta = (time - prevTime) / 1000;
+    
+    // Physics Visuals (Pulse)
+    objects.forEach(obj => {
+        const core = obj.userData.coreMesh;
+        if(core && core.userData.pulseTimer > 0) {
+             core.userData.pulseTimer -= delta * 3.0; // Fade speed
+             
+             let targetColor = core.userData.baseColor;
+             let intensity = core.userData.baseIntensity;
+             
+             if (core.userData.pulseMode === 'RESONATE') {
+                 targetColor = new THREE.Color(0xffd700); // GOLD
+                 intensity = 3.0;
+             } else if (core.userData.pulseMode === 'TUNNEL') {
+                 targetColor = new THREE.Color(0x00ffff); // CYAN
+                 intensity = 1.0;
+             } else if (core.userData.pulseMode === 'REJECT') {
+                 targetColor = new THREE.Color(0xff0000); // RED
+                 intensity = 5.0;
+             }
+             
+             // Blend back to base
+             const alpha = Math.max(0, core.userData.pulseTimer);
+             core.material.color.lerpColors(core.userData.baseColor, targetColor, alpha);
+             core.material.emissive.lerpColors(core.userData.baseColor, targetColor, alpha);
+             core.material.emissiveIntensity = intensity * alpha + core.userData.baseIntensity * (1-alpha);
+             
+             if(core.userData.pulseTimer <= 0) {
+                 core.userData.pulseMode = 'NONE';
+                 core.material.color.copy(core.userData.baseColor);
+             }
+        }
+    });
+
+    // Floating UI Update
+    if (focusedNodeObj && floatingCodex.style.display !== 'none') {
+        const targetPos = focusedNodeObj.userData.parentGroup.position.clone();
+        targetPos.y += 0.8; 
+        targetPos.project(camera);
+        const x = (targetPos.x * .5 + .5) * window.innerWidth;
+        const y = (-(targetPos.y * .5) + .5) * window.innerHeight;
+        if (targetPos.z < 1) {
+            floatingCodex.style.left = `${x}px`;
+            floatingCodex.style.top = `${y}px`;
+            floatingCodex.style.opacity = 1;
+        } else floatingCodex.style.opacity = 0;
+    }
+
+    // Movement
+    if(isLocked) {
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+        velocity.y -= velocity.y * 10.0 * delta;
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveRight) - Number(moveLeft);
+        direction.y = Number(moveUp) - Number(moveDown);
+        direction.normalize();
+        if (moveForward || moveBackward) velocity.z -= direction.z * 80.0 * delta;
+        if (moveLeft || moveRight) velocity.x -= direction.x * 80.0 * delta;
+        if (moveUp || moveDown) velocity.y += direction.y * 80.0 * delta;
+        controls.moveRight(-velocity.x * delta);
+        controls.moveForward(-velocity.z * delta);
+        camera.position.y += velocity.y * delta;
+    }
+
+    prevTime = time;
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+updateLabels();
+
+</script>
+</body>
+</html>
